@@ -7,12 +7,7 @@ jest.mock('../database/mongo/models/juego.model');
 jest.mock('../services/juego.services');
 jest.mock('../database/dgraph/queries/juego.queries');
 
-
-
-
-
 describe('crearJuego', () => {
-
     it('deberia rechazar con 400 si no se manda ningun id', async () => {
         const req = { body: {} } as unknown as Request;
         const res = {
@@ -35,7 +30,7 @@ describe('crearJuego', () => {
 
         (Juego.findOne as jest.Mock).mockResolvedValueOnce({
             activo: true,
-            id_api: 415171
+            id_api: 415171,
         });
 
         await crearJuego(req, res);
@@ -68,9 +63,7 @@ describe('crearJuego', () => {
 
         expect(juegoInactivoMock.activo).toBe(true);
         expect(juegoInactivoMock.save).toHaveBeenCalled();
-        expect(res.json).toHaveBeenCalledWith(
-            expect.objectContaining({ message: 'Juego reactivado exitosamente' })
-        );
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Juego reactivado exitosamente' }));
     });
 
     it('deberia crear un juego nuevo si no existe ningun documento con ese id_api', async () => {
@@ -87,7 +80,7 @@ describe('crearJuego', () => {
             background_image: 'url',
             id: 415171,
             genres: [],
-            platforms: []
+            platforms: [],
         });
 
         (transformarJuegoRAWG as jest.Mock).mockReturnValueOnce({
@@ -95,7 +88,7 @@ describe('crearJuego', () => {
             imagen: 'url',
             generos: [],
             plataformas: [],
-            id_api: 415171
+            id_api: 415171,
         });
 
         const nuevoJuegoMock: any = {
@@ -115,9 +108,6 @@ describe('crearJuego', () => {
         expect(obtenerDetalleJuegoRAWG).toHaveBeenCalledWith(415171);
         expect(nuevoJuegoMock.save).toHaveBeenCalled();
         expect(res.status).toHaveBeenCalledWith(201);
-        expect(res.json).toHaveBeenCalledWith(
-            expect.objectContaining({ message: 'Juego creado exitosamente' })
-        );
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Juego creado exitosamente' }));
     });
-
 });

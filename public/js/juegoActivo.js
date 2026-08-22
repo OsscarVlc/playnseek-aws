@@ -52,3 +52,31 @@ toggleBusca.addEventListener('change', async () => {
         body: JSON.stringify({ busca_equipo: toggleBusca.checked })
     });
 });
+
+
+const togglePasado = document.getElementById('toggle-juego-pasado');
+
+if (togglePasado) {
+    togglePasado.addEventListener('change', async () => {
+        const url = `/user/juegos-pasados/${juegoId}`;
+        const metodo = togglePasado.checked ? 'POST' : 'DELETE';
+
+        const res = await fetch(url, {
+            method: metodo,
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+            const data = await res.json();
+            alert(data.message);
+            togglePasado.checked = !togglePasado.checked;
+            return;
+        }
+
+        // si se marcó como pasado, refleja que ya no está activo
+        if (togglePasado.checked && toggleActivo.checked) {
+            toggleActivo.checked = false;
+            contenedorBusca.style.display = 'none';
+        }
+    });
+}

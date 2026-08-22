@@ -12,5 +12,5 @@ export const upload = multer({
             return cb(new Error('Solo se permiten archivos de imagen'));
         }
         cb(null, true);
-    }
+    },
 });

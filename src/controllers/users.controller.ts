@@ -13,9 +13,6 @@ import { confirmarCuentaCore } from '../services/confirmacion.service';
 import { Types } from 'mongoose';
 import { sincronizarJuegosUsuario } from '../database/dgraph/queries/juego.queries';
 
-
-
-
 export async function registerUser(req: Request, res: Response) {
     try {
         const { name, email, password } = req.body;
@@ -43,7 +40,7 @@ export async function registerUser(req: Request, res: Response) {
             console.log('Usuario creado: ' + doc._id);
 
             const tokenConfirmacion = generarTokenConfirmacion(doc._id.toString());
-            const urlConfirmacion = `http://localhost:3000/confirmar/${tokenConfirmacion}`; 
+            const urlConfirmacion = `${process.env.APP_URL}/confirmar/${tokenConfirmacion}`;
             try {
                 await enviarCorreoConfirmacion(doc.correo, doc.nombre, urlConfirmacion);
             } catch (err) {
@@ -52,7 +49,7 @@ export async function registerUser(req: Request, res: Response) {
 
             // Sincronizar con Dgraph (no bloquea el registro si falla) --------------------------------------------------
             try {
-                 console.log('INICIANDO SINCRONIZACION DGRAPH')
+                console.log('INICIANDO SINCRONIZACION DGRAPH');
                 await crearUsuarioEnDgraph(doc._id.toString(), doc.nombre);
             } catch (err) {
                 console.error(`Usuario ${doc._id} creado en Mongo pero FALLÓ la sincronización con Dgraph:`, err);
@@ -94,7 +91,9 @@ export async function loginUser(req: Request, res: Response) {
         }
 
         if (!user.correo_confirmado) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Debes confirmar tu correo antes de iniciar sesión' });
+            return res
+                .status(HttpStatus.UNAUTHORIZED)
+                .json({ message: 'Debes confirmar tu correo antes de iniciar sesión' });
         }
 
         // Generar token
@@ -126,9 +125,6 @@ export function getMe(req: AuthRequest, res: Response) {
     });
 }
 
-
-
-
 export async function actualizarUsuario(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
@@ -142,7 +138,9 @@ export async function actualizarUsuario(req: AuthRequest, res: Response) {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'No se puede modificar el rol' });
         }
         if (correo_confirmado !== undefined) {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'No se puede modificar correo_confirmado desde aquí' });
+            return res
+                .status(HttpStatus.BAD_REQUEST)
+                .json({ message: 'No se puede modificar correo_confirmado desde aquí' });
         }
 
         const userUpdate: Partial<IUser> = { ...resto };
@@ -191,8 +189,6 @@ export async function actualizarUsuario(req: AuthRequest, res: Response) {
         return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
-
-
 
 export async function eliminarUsuario(req: AuthRequest, res: Response) {
     try {
@@ -243,9 +239,6 @@ export async function listarUsuarios(req: Request, res: Response) {
     }
 }
 
-
-
-
 export async function confirmarCuenta(req: Request, res: Response) {
     try {
         const { token } = req.params;
@@ -256,13 +249,11 @@ export async function confirmarCuenta(req: Request, res: Response) {
         await confirmarCuentaCore(token);
 
         return res.json({ message: 'Cuenta confirmada exitosamente' });
-
     } catch (err) {
         console.log(err);
         return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Token de confirmación inválido o expirado' });
     }
 }
-
 
 export async function reenviarConfirmacion(req: Request, res: Response) {
     try {
@@ -283,19 +274,16 @@ export async function reenviarConfirmacion(req: Request, res: Response) {
         }
 
         const tokenConfirmacion = generarTokenConfirmacion(usuario._id.toString());
-        const urlConfirmacion = `http://localhost:3000/confirmar/${tokenConfirmacion}`; 
+        const urlConfirmacion = `${process.env.APP_URL}/confirmar/${tokenConfirmacion}`;
 
         await enviarCorreoConfirmacion(usuario.correo, usuario.nombre, urlConfirmacion);
 
         return res.json({ message: 'Correo de confirmación reenviado' });
-
     } catch (err) {
         console.log(err);
         return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
-
-
 
 export async function cambiarRolUsuario(req: AuthRequest, res: Response) {
     try {
@@ -322,7 +310,6 @@ export async function cambiarRolUsuario(req: AuthRequest, res: Response) {
         }
 
         return res.json({ message: 'Rol actualizado exitosamente', usuario });
-
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
@@ -331,7 +318,6 @@ export async function cambiarRolUsuario(req: AuthRequest, res: Response) {
         return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
-
 
 export async function agregarJuegoActivo(req: AuthRequest, res: Response) {
     try {
@@ -362,7 +348,7 @@ export async function agregarJuegoActivo(req: AuthRequest, res: Response) {
             usuario.juegos_activos.push({
                 juego_id: new Types.ObjectId(juegoId),
                 busca_equipo: !!busca_equipo,
-                desde: new Date()
+                desde: new Date(),
             });
         }
 
@@ -375,11 +361,13 @@ export async function agregarJuegoActivo(req: AuthRequest, res: Response) {
             const idsJuegos = usuario.juegos_activos.map((j) => j.juego_id.toString());
             await sincronizarJuegosUsuario(req.user._id.toString(), idsJuegos);
         } catch (err) {
-            console.error(`usuario ${req.user._id} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`, err);
+            console.error(
+                `usuario ${req.user._id} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`,
+                err,
+            );
         }
 
         return res.json({ message: 'Juego agregado a activos', juegos_activos: usuario.juegos_activos });
-
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
@@ -424,11 +412,90 @@ export async function quitarJuegoActivo(req: AuthRequest, res: Response) {
             const idsJuegos = usuario.juegos_activos.map((j) => j.juego_id.toString());
             await sincronizarJuegosUsuario(req.user._id.toString(), idsJuegos);
         } catch (err) {
-            console.error(`usuario ${req.user._id} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`, err);
+            console.error(
+                `usuario ${req.user._id} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`,
+                err,
+            );
         }
 
         return res.json({ message: 'Juego movido a pasados' });
+    } catch (err) {
+        console.log(err);
+        if ((err as Error).name === 'CastError') {
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+        }
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+    }
+}
 
+export async function agregarJuegoPasado(req: AuthRequest, res: Response) {
+    try {
+        if (typeof req.user === 'string' || !req.user) {
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+        }
+
+        const { juegoId } = req.params;
+
+        if (typeof juegoId !== 'string') {
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id de juego inválido' });
+        }
+
+        const usuario = await User.findById(req.user._id);
+        if (!usuario) {
+            return res.status(HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
+        }
+
+        // si estaba activo, lo quitamos de ahí primero
+        usuario.juegos_activos = (usuario.juegos_activos || []).filter((j) => j.juego_id.toString() !== juegoId);
+
+        usuario.juegos_pasados = usuario.juegos_pasados || [];
+        if (!usuario.juegos_pasados.some((id) => id.toString() === juegoId)) {
+            usuario.juegos_pasados.push(new Types.ObjectId(juegoId));
+        }
+
+        await usuario.save();
+
+        try {
+            const idsJuegos = usuario.juegos_activos.map((j) => j.juego_id.toString());
+            await sincronizarJuegosUsuario(req.user._id.toString(), idsJuegos);
+        } catch (err) {
+            console.error(
+                `usuario ${req.user._id} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`,
+                err,
+            );
+        }
+
+        return res.json({ message: 'Juego agregado a pasados' });
+    } catch (err) {
+        console.log(err);
+        if ((err as Error).name === 'CastError') {
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+        }
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+    }
+}
+
+export async function quitarJuegoPasado(req: AuthRequest, res: Response) {
+    try {
+        if (typeof req.user === 'string' || !req.user) {
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+        }
+
+        const { juegoId } = req.params;
+
+        if (typeof juegoId !== 'string') {
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id de juego inválido' });
+        }
+
+        const usuario = await User.findById(req.user._id);
+        if (!usuario) {
+            return res.status(HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
+        }
+
+        usuario.juegos_pasados = (usuario.juegos_pasados || []).filter((id) => id.toString() !== juegoId);
+        await usuario.save();
+
+        return res.json({ message: 'Juego quitado de pasados' });
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {

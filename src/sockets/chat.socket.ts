@@ -17,9 +17,9 @@ export function configurarChatSocket(io: Server) {
                 return socket.emit('error_chat', 'Grupo no encontrado');
             }
 
-            const esIntegrante = (grupo.integrantes?.some(
-                (id) => id.toString() === socket.usuarioId
-            ) ?? false) || socket.rol === 'administrador';
+            const esIntegrante =
+                (grupo.integrantes?.some((id) => id.toString() === socket.usuarioId) ?? false) ||
+                socket.rol === 'administrador';
 
             if (!esIntegrante) {
                 return socket.emit('error_chat', 'No eres integrante de este grupo');
@@ -39,7 +39,7 @@ export function configurarChatSocket(io: Server) {
                 usuario_id: m.usuario_id._id,
                 nombreUsuario: m.usuario_id.nombre,
                 contenido: m.contenido,
-                fecha: m.fecha
+                fecha: m.fecha,
             }));
 
             socket.emit('historial', mensajesFormateados);
@@ -55,9 +55,9 @@ export function configurarChatSocket(io: Server) {
                 return socket.emit('error_chat', 'Grupo no encontrado');
             }
 
-            const esIntegrante = (grupo.integrantes?.some(
-                (id) => id.toString() === socket.usuarioId
-            ) ?? false) || socket.rol === 'administrador';
+            const esIntegrante =
+                (grupo.integrantes?.some((id) => id.toString() === socket.usuarioId) ?? false) ||
+                socket.rol === 'administrador';
 
             if (!esIntegrante) {
                 return socket.emit('error_chat', 'No eres integrante de este grupo');
@@ -67,7 +67,7 @@ export function configurarChatSocket(io: Server) {
                 grupo_id: grupoId,
                 usuario_id: socket.usuarioId,
                 contenido,
-                fecha: new Date()
+                fecha: new Date(),
             });
 
             const doc = await nuevoMensaje.save();
@@ -77,7 +77,7 @@ export function configurarChatSocket(io: Server) {
                 usuario_id: doc.usuario_id,
                 nombreUsuario: socket.nombreUsuario,
                 contenido: doc.contenido,
-                fecha: doc.fecha
+                fecha: doc.fecha,
             });
         });
 

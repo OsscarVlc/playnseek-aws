@@ -11,7 +11,7 @@ const userSchema = new Schema<IUser>({
     edad: { type: Number },
     sexo: { type: String, enum: Object.values(Sexo) }, // enum: Object.values(Sexo) asegura que solo se puedan guardar los valores definidos en el enum Sexo
     correo: { type: String, required: true, unique: true },
-    correo_confirmado: {type:Boolean, default: false},
+    correo_confirmado: { type: Boolean, default: false },
     contrasena_hash: { type: String, required: true },
     rol: { type: String, default: Roles.USER, enum: Object.values(Roles) },
     isActive: { type: Boolean, default: true },
@@ -29,12 +29,12 @@ const userSchema = new Schema<IUser>({
     ],
     juegos_activos: [
         {
-            juego_id: { type: Schema.Types.ObjectId },
+            juego_id: { type: Schema.Types.ObjectId, ref: 'Juego' },
             busca_equipo: { type: Boolean },
             desde: { type: Date },
         },
     ],
-    juegos_pasados: { type: [Schema.Types.ObjectId] },
+    juegos_pasados: { type: [Schema.Types.ObjectId], ref: 'Juego' },
 });
 
 //Exportamos el modelo de usuario para poder usarlo en otras partes del proyecto

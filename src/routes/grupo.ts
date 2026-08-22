@@ -4,11 +4,11 @@ import {
     eliminarGrupo,
     actualizarGrupo,
     obtenerGrupo,
-    listarGrupos, 
-    unirseAGrupo, 
-    salirDeGrupo, 
+    listarGrupos,
+    unirseAGrupo,
+    salirDeGrupo,
     expulsarIntegrante,
-    transferirLiderazgo
+    transferirLiderazgo,
 } from '../controllers/grupo.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 

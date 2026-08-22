@@ -16,7 +16,8 @@ export async function sincronizarUsuarioConDgraph(mongoId: string, userUpdate: P
         if (userUpdate.sexo !== undefined) camposDgraph.genero = userUpdate.sexo; // pasamos los datos que nos interesan
         if (userUpdate.rol !== undefined) camposDgraph.rol = userUpdate.rol; // pasamos los datos que nos interesan
 
-        if (Object.keys(camposDgraph).length > 0) { // verificamos si hay algo que actualizar
+        if (Object.keys(camposDgraph).length > 0) {
+            // verificamos si hay algo que actualizar
             await actualizarUsuarioEnDgraph(mongoId, camposDgraph); // si los hay los mandamos a la funcion
         }
     } catch (err) {
@@ -29,7 +30,10 @@ export async function sincronizarUsuarioConDgraph(mongoId: string, userUpdate: P
         try {
             await sincronizarIdiomasUsuario(mongoId, userUpdate.idiomas);
         } catch (err) {
-            console.error(`usuario ${mongoId} actualizado en mongo pero FALLO la sincronizacion de idiomas con dgraph`, err);
+            console.error(
+                `usuario ${mongoId} actualizado en mongo pero FALLO la sincronizacion de idiomas con dgraph`,
+                err,
+            );
         }
     }
     // -------------------------------------------------------------------------------------------------------------------
@@ -40,16 +44,22 @@ export async function sincronizarUsuarioConDgraph(mongoId: string, userUpdate: P
             const nombresPlataformas = userUpdate.plataformas.map((p) => p.nombre); // solo nos interesa el nombre no el gamertag
             await sincronizarPlataformasUsuario(mongoId, nombresPlataformas);
         } catch (err) {
-            console.error(`usuario ${mongoId} actualizado en mongo pero FALLO la sincronizacion de plataformas con dgraph`, err);
+            console.error(
+                `usuario ${mongoId} actualizado en mongo pero FALLO la sincronizacion de plataformas con dgraph`,
+                err,
+            );
         }
     }
     // ---------------------------------------------------------------------------------------------------------------------
     if (userUpdate.juegos_activos !== undefined) {
-    try {
-        const idsJuegos = userUpdate.juegos_activos.map((j) => j.juego_id.toString());
-        await sincronizarJuegosUsuario(mongoId, idsJuegos);
-    } catch (err) {
-        console.error(`usuario ${mongoId} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`, err);
-    }
+        try {
+            const idsJuegos = userUpdate.juegos_activos.map((j) => j.juego_id.toString());
+            await sincronizarJuegosUsuario(mongoId, idsJuegos);
+        } catch (err) {
+            console.error(
+                `usuario ${mongoId} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`,
+                err,
+            );
+        }
     }
 }

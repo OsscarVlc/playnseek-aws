@@ -1,9 +1,7 @@
 import { handlebarsHelpers } from './handlebars-helpers';
 
 describe('colorPlataforma', () => {
-
     it('debería regresar "success" para xbox', () => {
-
         // Arrange
         const plataforma = 'xbox';
 
@@ -15,7 +13,6 @@ describe('colorPlataforma', () => {
     });
 
     it('debería regresar "secondary" para una plataforma que no está en el diccionario', () => {
-
         // Arrange
         // simulamos una plataforma inventada, que nunca vamos a tener en el enum real
         const plataforma = 'plataforma-inexistente';
@@ -27,16 +24,13 @@ describe('colorPlataforma', () => {
         // esta es la razon de ser del "|| 'secondary'" dentro del helper original
         expect(resultado).toBe('secondary');
     });
-
 });
 
 describe('colorGenero', () => {
-
     it('debería regresar el mismo color para índices que se repiten cada 6 posiciones', () => {
-
         // Arrange
         // la lista de colores tiene 6 elementos, asi que el indice 0 y el 6
-        // deberian regresar el mismo color 
+        // deberian regresar el mismo color
         const indiceUno = 0;
         const indiceDos = 6;
 
@@ -47,13 +41,10 @@ describe('colorGenero', () => {
         // Assert
         expect(colorUno).toBe(colorDos);
     });
-
 });
 
 describe('eq', () => {
-
     it('deberia regresar true al comparar dos strings iguales', () => {
-
         // Arrange
         const valorA = 'admin123';
         const valorB = 'admin123';
@@ -64,13 +55,11 @@ describe('eq', () => {
     });
 
     it('deberia regresar true al comparar un ObjectId con su representación en string', () => {
-
         // simulamos un ObjectId de mongoose
         const objectIdSimulado = { toString: () => 'abc123' };
         const stringPlano = 'abc123';
 
         const resultado = handlebarsHelpers.eq(objectIdSimulado, stringPlano);
-
 
         // esto es justo el caso real de uso: comparar this._id (ObjectId) contra
         // miUsuarioId (string) en las vistas de Handlebars
@@ -78,7 +67,6 @@ describe('eq', () => {
     });
 
     it('deberia regresar false si los valores son distintos', () => {
-
         // Arrange
         const valorA = 'admin123';
         const valorB = 'usuario456';
@@ -89,11 +77,9 @@ describe('eq', () => {
         // Assert
         expect(resultado).toBe(false);
     });
-
 });
 
 describe('esModeradorOAdmin', () => {
-
     it('deberia regresar true para el rol "administrador"', () => {
         expect(handlebarsHelpers.esModeradorOAdmin('administrador')).toBe(true);
     });
@@ -105,5 +91,4 @@ describe('esModeradorOAdmin', () => {
     it('deberia regresar false para el rol "usuario"', () => {
         expect(handlebarsHelpers.esModeradorOAdmin('usuario')).toBe(false);
     });
-
 });

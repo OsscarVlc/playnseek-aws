@@ -17,13 +17,11 @@ function mockPostFindChain(resultado: any[]) {
 }
 
 describe('listarPosts', () => {
-
     it('debería rechazar con 401 si filtra por grupo_id sin estar autenticado', async () => {
-
         // Arrange
         const req = {
             user: undefined,
-            query: { grupo_id: '111111111111111111111111' }
+            query: { grupo_id: '111111111111111111111111' },
         } as unknown as AuthRequest;
 
         const res = {
@@ -40,11 +38,10 @@ describe('listarPosts', () => {
     });
 
     it('debería devolver 404 si el grupo no existe o está inactivo', async () => {
-
         // Arrange
         const req = {
             user: { _id: 'miId', rol: 'usuario' },
-            query: { grupo_id: '111111111111111111111111' }
+            query: { grupo_id: '111111111111111111111111' },
         } as unknown as AuthRequest;
 
         const res = {
@@ -63,11 +60,10 @@ describe('listarPosts', () => {
     });
 
     it('debería rechazar con 403 si no es integrante ni admin', async () => {
-
         // Arrange
         const req = {
             user: { _id: 'miId', rol: 'usuario' },
-            query: { grupo_id: '111111111111111111111111' }
+            query: { grupo_id: '111111111111111111111111' },
         } as unknown as AuthRequest;
 
         const res = {
@@ -77,7 +73,7 @@ describe('listarPosts', () => {
 
         (Grupo.findById as jest.Mock).mockResolvedValueOnce({
             activo: true,
-            integrantes: [{ toString: () => 'otroUsuarioId' }] // no incluye a "miId"
+            integrantes: [{ toString: () => 'otroUsuarioId' }], // no incluye a "miId"
         });
 
         // Act
@@ -89,11 +85,10 @@ describe('listarPosts', () => {
     });
 
     it('debería permitir ver los posts si es integrante del grupo', async () => {
-
         // Arrange
         const req = {
             user: { _id: 'miId', rol: 'usuario' },
-            query: { grupo_id: '111111111111111111111111' }
+            query: { grupo_id: '111111111111111111111111' },
         } as unknown as AuthRequest;
 
         const res = {
@@ -103,7 +98,7 @@ describe('listarPosts', () => {
 
         (Grupo.findById as jest.Mock).mockResolvedValueOnce({
             activo: true,
-            integrantes: [{ toString: () => 'miId' }] // sí incluye a "miId"
+            integrantes: [{ toString: () => 'miId' }], // sí incluye a "miId"
         });
 
         mockPostFindChain([{ contenido: 'Hola grupo' }]);
@@ -114,16 +109,15 @@ describe('listarPosts', () => {
 
         // Assert
         expect(res.json).toHaveBeenCalledWith(
-            expect.objectContaining({ data: [{ contenido: 'Hola grupo' }], total: 1 })
+            expect.objectContaining({ data: [{ contenido: 'Hola grupo' }], total: 1 }),
         );
     });
 
     it('debería permitir ver los posts si es admin, aunque no sea integrante', async () => {
-
         // Arrange
         const req = {
             user: { _id: 'adminId', rol: 'administrador' },
-            query: { grupo_id: '111111111111111111111111' }
+            query: { grupo_id: '111111111111111111111111' },
         } as unknown as AuthRequest;
 
         const res = {
@@ -133,7 +127,7 @@ describe('listarPosts', () => {
 
         (Grupo.findById as jest.Mock).mockResolvedValueOnce({
             activo: true,
-            integrantes: [{ toString: () => 'otroUsuarioId' }] // adminId NO está en la lista
+            integrantes: [{ toString: () => 'otroUsuarioId' }], // adminId NO está en la lista
         });
 
         mockPostFindChain([]);
@@ -147,5 +141,4 @@ describe('listarPosts', () => {
         expect(res.status).not.toHaveBeenCalledWith(403);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ data: [] }));
     });
-
 });

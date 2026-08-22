@@ -33,6 +33,10 @@
                             <input class="form-check-input" type="checkbox" id="toggle-busca-equipo" {{#if buscaEquipo}}checked{{/if}}>
                             <label class="form-check-label" for="toggle-busca-equipo">Busco equipo</label>
                         </div>
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="toggle-juego-pasado" {{#if esPasado}}checked{{/if}}>
+                            <label class="form-check-label" for="toggle-juego-pasado">Ya lo jugué antes</label>
+                        </div>
                         <script src="/js/juegoActivo.js" data-token="{{token}}" data-juego-id="{{juegoId}}"></script>
                     {{/if}}
                     <a href="/juegos" class="btn btn-outline-secondary mt-3">← Volver al catalogo</a>

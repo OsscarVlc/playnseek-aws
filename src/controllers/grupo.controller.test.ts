@@ -78,9 +78,7 @@ describe('unirseAGrupo', () => {
         expect(grupoMock.integrantes).toContain(miId);
         expect(grupoMock.save).toHaveBeenCalled();
         expect(agregarMiembroComunidad).toHaveBeenCalledWith(miId, 'grupoId');
-        expect(res.json).toHaveBeenCalledWith(
-            expect.objectContaining({ message: 'Te uniste al grupo exitosamente' })
-        );
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Te uniste al grupo exitosamente' }));
     });
 });
 
@@ -267,7 +265,7 @@ describe('transferirLiderazgo', () => {
         expect(grupoMock.lider_id.toString()).toBe(nuevoLiderId);
         expect(grupoMock.save).toHaveBeenCalled();
         expect(res.json).toHaveBeenCalledWith(
-            expect.objectContaining({ message: 'Liderazgo transferido exitosamente' })
+            expect.objectContaining({ message: 'Liderazgo transferido exitosamente' }),
         );
     });
 });

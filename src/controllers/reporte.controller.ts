@@ -70,9 +70,11 @@ export async function listarReportes(req: AuthRequest, res: Response) {
             filtro.estado = req.query.estado as estadoReporte;
         }
 
-        const reportes = await Reporte.find(filtro).skip(skip).limit(limite)
-        .populate('remitente_id', 'nombre')
-        .populate('reportado_id', 'nombre');
+        const reportes = await Reporte.find(filtro)
+            .skip(skip)
+            .limit(limite)
+            .populate('remitente_id', 'nombre')
+            .populate('reportado_id', 'nombre');
         const total = await Reporte.countDocuments(filtro);
 
         res.json({

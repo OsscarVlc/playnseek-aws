@@ -5,7 +5,7 @@ export interface IMensaje {
     usuario_id: Types.ObjectId;
     contenido: string;
     fecha: Date;
-    grupo_id?: Types.ObjectId;      // presente si es mensaje de grupo
+    grupo_id?: Types.ObjectId; // presente si es mensaje de grupo
     destinatario_id?: Types.ObjectId; // presente si es mensaje privado
 }
 //Omit<IMensaje, 'usuario_id'> significa que estamos tomando la interfaz IMensaje y omitiendo la propiedad usuario_id

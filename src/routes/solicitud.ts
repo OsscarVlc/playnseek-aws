@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middlewares/auth.middleware';
-import { enviarSolicitud, listarSolicitudesRecibidas, responderSolicitud, listarSolicitudesEnviadas, cancelarSolicitud } from '../controllers/solicitud.controller';
+import {
+    enviarSolicitud,
+    listarSolicitudesRecibidas,
+    responderSolicitud,
+    listarSolicitudesEnviadas,
+    cancelarSolicitud,
+} from '../controllers/solicitud.controller';
 
 const router = Router();
 

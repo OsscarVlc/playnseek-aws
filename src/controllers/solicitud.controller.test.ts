@@ -102,11 +102,9 @@ describe('enviarSolicitud', () => {
             match: true,
         });
     });
-
 });
 
 import { responderSolicitud } from './solicitud.controller';
-
 
 describe('responderSolicitud', () => {
     it('debería devolver 404 si la solicitud no existe', async () => {

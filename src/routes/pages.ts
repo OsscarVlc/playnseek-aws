@@ -13,9 +13,14 @@ import {
     mostrarConfirmacion,
     mostrarChatPrivado,
     mostrarAdminUsuarios,
-    mostrarModeracionReportes
+    mostrarModeracionReportes,
 } from '../controllers/pages.Controller';
-import { authMiddlewareVistas, authOpcionalVistas, requireAdminVistas, requireModeradorVistas } from '../middlewares/auth-vistas.middleware';
+import {
+    authMiddlewareVistas,
+    authOpcionalVistas,
+    requireAdminVistas,
+    requireModeradorVistas,
+} from '../middlewares/auth-vistas.middleware';
 
 const router = express.Router();
 
@@ -26,7 +31,7 @@ router.get('/perfil', authMiddlewareVistas, mostrarPerfil);
 router.get('/juegos', mostrarJuegos);
 router.get('/juegos/:id', authOpcionalVistas, mostrarDetalleJuego);
 router.get('/grupos', mostrarGrupos);
-router.get('/grupos/:id', authOpcionalVistas,mostrarDetalleGrupo);
+router.get('/grupos/:id', authOpcionalVistas, mostrarDetalleGrupo);
 router.get('/logout', logout);
 
 router.get('/match', authMiddlewareVistas, mostrarMatch);

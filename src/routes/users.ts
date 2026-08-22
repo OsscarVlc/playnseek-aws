@@ -11,7 +11,9 @@ import {
     reenviarConfirmacion,
     cambiarRolUsuario,
     agregarJuegoActivo,
-    quitarJuegoActivo
+    quitarJuegoActivo,
+    agregarJuegoPasado,
+    quitarJuegoPasado,
 } from '../controllers/users.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { validatePassword } from '../middlewares/validatePassword.middleware';
@@ -236,5 +238,8 @@ router.patch('/:id/rol', authMiddleware, requireAdmin, cambiarRolUsuario);
 
 router.post('/juegos-activos/:juegoId', authMiddleware, agregarJuegoActivo);
 router.delete('/juegos-activos/:juegoId', authMiddleware, quitarJuegoActivo);
+
+router.post('/juegos-pasados/:juegoId', authMiddleware, agregarJuegoPasado);
+router.delete('/juegos-pasados/:juegoId', authMiddleware, quitarJuegoPasado);
 
 export default router;

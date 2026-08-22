@@ -3,10 +3,13 @@ import { AuthRequest } from '../types/auth-request';
 import { HttpStatus } from '../types/https-status';
 import { Grupo } from '../database/mongo/models/grupo.model';
 import { IGrupo } from '../types/grupo.types';
-import { Roles } from "../types/user.types"; 
+import { Roles } from '../types/user.types';
 import { Types } from 'mongoose';
-import { crearComunidadEnDgraph, agregarMiembroComunidad, quitarMiembroComunidad } from '../database/dgraph/queries/comunidad.queries';
-
+import {
+    crearComunidadEnDgraph,
+    agregarMiembroComunidad,
+    quitarMiembroComunidad,
+} from '../database/dgraph/queries/comunidad.queries';
 
 export async function crearGrupo(req: AuthRequest, res: Response) {
     try {
@@ -202,9 +205,7 @@ export async function unirseAGrupo(req: AuthRequest, res: Response) {
             return res.status(HttpStatus.NOT_FOUND).json({ message: 'No se encontro el grupo' });
         }
 
-        const yaEsMiembro = grupo.integrantes?.some(
-            (integranteId) => integranteId.toString() === usuarioId
-        );
+        const yaEsMiembro = grupo.integrantes?.some((integranteId) => integranteId.toString() === usuarioId);
 
         if (yaEsMiembro) {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Ya eres miembro de este grupo' });
@@ -220,13 +221,12 @@ export async function unirseAGrupo(req: AuthRequest, res: Response) {
         }
 
         return res.json({ message: 'Te uniste al grupo exitosamente', grupo });
-
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
 
@@ -237,7 +237,7 @@ export async function salirDeGrupo(req: AuthRequest, res: Response) {
         }
 
         const { id } = req.params;
-        const usuarioId = req.user._id.toString(); 
+        const usuarioId = req.user._id.toString();
 
         const grupo = await Grupo.findById(id);
 
@@ -247,21 +247,17 @@ export async function salirDeGrupo(req: AuthRequest, res: Response) {
 
         if (grupo.lider_id.toString() === usuarioId) {
             return res.status(HttpStatus.BAD_REQUEST).json({
-                message: 'El lider debe transferir el liderazgo antes de salir del grupo'
+                message: 'El lider debe transferir el liderazgo antes de salir del grupo',
             });
         }
 
-        const esMiembro = grupo.integrantes?.some(
-            (integranteId) => integranteId.toString() === usuarioId 
-        );
+        const esMiembro = grupo.integrantes?.some((integranteId) => integranteId.toString() === usuarioId);
 
         if (!esMiembro) {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'No eres miembro de este grupo' });
         }
 
-        grupo.integrantes = grupo.integrantes?.filter(
-            (integranteId) => integranteId.toString() !== usuarioId
-        );
+        grupo.integrantes = grupo.integrantes?.filter((integranteId) => integranteId.toString() !== usuarioId);
         await grupo.save();
 
         try {
@@ -271,13 +267,12 @@ export async function salirDeGrupo(req: AuthRequest, res: Response) {
         }
 
         return res.json({ message: 'Saliste del grupo exitosamente' });
-
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
 
@@ -305,27 +300,23 @@ export async function expulsarIntegrante(req: AuthRequest, res: Response) {
 
         if (!esLider && !esAdmin) {
             return res.status(HttpStatus.UNAUTHORIZED).json({
-                message: 'Solo el lider del grupo o un administrador pueden expulsar integrantes'
+                message: 'Solo el lider del grupo o un administrador pueden expulsar integrantes',
             });
         }
 
         if (usuarioId === grupo.lider_id.toString()) {
             return res.status(HttpStatus.BAD_REQUEST).json({
-                message: 'No se puede expulsar al lider del grupo'
+                message: 'No se puede expulsar al lider del grupo',
             });
         }
 
-        const esMiembro = grupo.integrantes?.some(
-            (integranteId) => integranteId.toString() === usuarioId
-        );
+        const esMiembro = grupo.integrantes?.some((integranteId) => integranteId.toString() === usuarioId);
 
         if (!esMiembro) {
             return res.status(HttpStatus.NOT_FOUND).json({ message: 'Ese usuario no es miembro de este grupo' });
         }
 
-        grupo.integrantes = grupo.integrantes?.filter(
-            (integranteId) => integranteId.toString() !== usuarioId
-        );
+        grupo.integrantes = grupo.integrantes?.filter((integranteId) => integranteId.toString() !== usuarioId);
         await grupo.save();
 
         try {
@@ -335,13 +326,12 @@ export async function expulsarIntegrante(req: AuthRequest, res: Response) {
         }
 
         return res.json({ message: 'Integrante expulsado exitosamente' });
-
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
 
@@ -366,16 +356,16 @@ export async function transferirLiderazgo(req: AuthRequest, res: Response) {
         }
 
         if (grupo.lider_id.toString() !== usuarioId) {
-            return res.status(HttpStatus.FORBIDDEN).json({ message: 'Solo el lider actual puede transferir el liderazgo' });
+            return res
+                .status(HttpStatus.FORBIDDEN)
+                .json({ message: 'Solo el lider actual puede transferir el liderazgo' });
         }
 
         if (nuevoLiderId === usuarioId) {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Ya eres el lider de este grupo' });
         }
 
-        const esMiembro = grupo.integrantes?.some(
-            (integranteId) => integranteId.toString() === nuevoLiderId
-        );
+        const esMiembro = grupo.integrantes?.some((integranteId) => integranteId.toString() === nuevoLiderId);
 
         if (!esMiembro) {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'El nuevo lider debe ser miembro del grupo' });
@@ -385,12 +375,11 @@ export async function transferirLiderazgo(req: AuthRequest, res: Response) {
         await grupo.save();
 
         return res.json({ message: 'Liderazgo transferido exitosamente', grupo });
-
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }

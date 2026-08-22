@@ -1,7 +1,6 @@
 import { generateToken, verifyToken } from './jwt';
 import jwt from 'jsonwebtoken';
 
-
 describe('generateToken y verifyToken', () => {
     it('debería generar un token válido y poder verificarlo, recuperando el mismo payload', () => {
         const payload = { _id: '123', correo: 'test@test.com', rol: 'usuario' };
@@ -34,5 +33,4 @@ describe('generateToken y verifyToken', () => {
             }, 50);
         });
     });
-
 });

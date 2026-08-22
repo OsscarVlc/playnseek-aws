@@ -15,28 +15,47 @@
             </div>
         </div>
 
+        <div class="card shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h5 class="card-title mb-3">Juegos que juego actualmente</h5>
+                <ul class="list-group mb-3">
+                    {{#each usuario.juegos_activos}}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="/juegos/{{this.juego_id._id}}">{{this.juego_id.titulo}}</a>
+                            {{#if this.busca_equipo}}
+                                <span class="badge bg-success">Busca equipo</span>
+                            {{/if}}
+                        </li>
+                    {{else}}
+                        <li class="list-group-item text-muted">Aún no tienes juegos activos.</li>
+                    {{/each}}
+                </ul>
+                <a href="/juegos" class="btn btn-sm btn-outline-primary">Ver catálogo de juegos</a>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-body p-4">
+                <h5 class="card-title mb-3">Juegos que ya jugué</h5>
+                <ul class="list-group mb-3">
+                    {{#each usuario.juegos_pasados}}
+                        <li class="list-group-item">
+                            <a href="/juegos/{{this._id}}">{{this.titulo}}</a>
+                        </li>
+                    {{else}}
+                        <li class="list-group-item text-muted">Aún no tienes juegos marcados como pasados.</li>
+                    {{/each}}
+                </ul>
+                <a href="/juegos" class="btn btn-sm btn-outline-primary">Ver catálogo de juegos</a>
+            </div>
+        </div>
+
         <div class="card shadow-sm">
             <div class="card-body p-4">
                 <h4 class="card-title mb-4">Completar / editar perfil</h4>
 
                 <div id="mensaje-perfil"></div>
-                {{#if usuario.juegos_activos.length}}
-                <div class="card shadow-sm mb-4">
-                    <div class="card-body p-4">
-                        <h5 class="card-title mb-3">Juegos que juego actualmente</h5>
-                        <ul class="list-group">
-                            {{#each usuario.juegos_activos}}
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    <a href="/juegos/{{this.juego_id._id}}">{{this.juego_id.titulo}}</a>
-                                    {{#if this.busca_equipo}}
-                                        <span class="badge bg-success">Busca equipo</span>
-                                    {{/if}}
-                                </li>
-                            {{/each}}
-                        </ul>
-                    </div>
-                </div>
-                {{/if}}
+
                 <form id="form-perfil">
                     <div class="mb-3">
                         <label class="form-label">Foto de perfil</label>

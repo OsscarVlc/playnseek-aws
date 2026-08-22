@@ -1,9 +1,9 @@
-import { Response } from "express";
-import { AuthRequest } from "../types/auth-request";
-import { HttpStatus } from "../types/https-status";
-import { Solicitud } from "../database/mongo/models/solicitud.model";
-import { EstadoSolicitud } from "../types/solicitud.types";
-import { crearMatchEnDgraph } from "../database/dgraph/queries/match.queries";
+import { Response } from 'express';
+import { AuthRequest } from '../types/auth-request';
+import { HttpStatus } from '../types/https-status';
+import { Solicitud } from '../database/mongo/models/solicitud.model';
+import { EstadoSolicitud } from '../types/solicitud.types';
+import { crearMatchEnDgraph } from '../database/dgraph/queries/match.queries';
 
 export async function enviarSolicitud(req: AuthRequest, res: Response) {
     try {
@@ -26,7 +26,7 @@ export async function enviarSolicitud(req: AuthRequest, res: Response) {
         const solicitudExistente = await Solicitud.findOne({
             de_usuario: deUsuario,
             a_usuario: aUsuario,
-            estado: EstadoSolicitud.PENDIENTE
+            estado: EstadoSolicitud.PENDIENTE,
         });
 
         if (solicitudExistente) {
@@ -37,7 +37,7 @@ export async function enviarSolicitud(req: AuthRequest, res: Response) {
         const solicitudInversa = await Solicitud.findOne({
             de_usuario: aUsuario,
             a_usuario: deUsuario,
-            estado: EstadoSolicitud.PENDIENTE
+            estado: EstadoSolicitud.PENDIENTE,
         });
 
         if (solicitudInversa) {
@@ -63,13 +63,12 @@ export async function enviarSolicitud(req: AuthRequest, res: Response) {
         console.log('Solicitud creada: ' + doc._id);
 
         return res.status(HttpStatus.CREATED).json({ message: 'Solicitud enviada exitosamente', solicitud: doc });
-
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
 
@@ -81,13 +80,13 @@ export async function listarSolicitudesRecibidas(req: AuthRequest, res: Response
 
         const solicitudes = await Solicitud.find({
             a_usuario: req.user._id,
-            estado: EstadoSolicitud.PENDIENTE
+            estado: EstadoSolicitud.PENDIENTE,
         }).populate('de_usuario', 'nombre foto_perfil idiomas plataformas');
 
         return res.json({ data: solicitudes });
     } catch (err) {
         console.log(err);
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
 
@@ -111,7 +110,9 @@ export async function responderSolicitud(req: AuthRequest, res: Response) {
         }
 
         if (solicitud.a_usuario.toString() !== req.user._id.toString()) {
-            return res.status(HttpStatus.FORBIDDEN).json({ message: 'No puedes responder una solicitud que no es tuya' });
+            return res
+                .status(HttpStatus.FORBIDDEN)
+                .json({ message: 'No puedes responder una solicitud que no es tuya' });
         }
 
         if (solicitud.estado !== EstadoSolicitud.PENDIENTE) {
@@ -132,13 +133,12 @@ export async function responderSolicitud(req: AuthRequest, res: Response) {
         }
 
         return res.json({ message: 'Solicitud rechazada' });
-
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
 
@@ -149,13 +149,13 @@ export async function listarSolicitudesEnviadas(req: AuthRequest, res: Response)
         }
 
         const solicitudes = await Solicitud.find({
-            de_usuario: req.user._id
+            de_usuario: req.user._id,
         }).populate('a_usuario', 'nombre foto_perfil');
 
         return res.json({ data: solicitudes });
     } catch (err) {
         console.log(err);
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
 
@@ -175,11 +175,15 @@ export async function cancelarSolicitud(req: AuthRequest, res: Response) {
         }
 
         if (solicitud.de_usuario.toString() !== usuarioId) {
-            return res.status(HttpStatus.FORBIDDEN).json({ message: 'No puedes cancelar una solicitud que no enviaste tú' });
+            return res
+                .status(HttpStatus.FORBIDDEN)
+                .json({ message: 'No puedes cancelar una solicitud que no enviaste tú' });
         }
 
         if (solicitud.estado !== EstadoSolicitud.PENDIENTE) {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Solo se pueden cancelar solicitudes pendientes' });
+            return res
+                .status(HttpStatus.BAD_REQUEST)
+                .json({ message: 'Solo se pueden cancelar solicitudes pendientes' });
         }
 
         solicitud.estado = EstadoSolicitud.CANCELADA;
@@ -187,12 +191,11 @@ export async function cancelarSolicitud(req: AuthRequest, res: Response) {
         await solicitud.save();
 
         return res.json({ message: 'Solicitud cancelada exitosamente' });
-
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }

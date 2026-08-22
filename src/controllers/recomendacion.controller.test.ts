@@ -67,16 +67,12 @@ describe('obtenerRecomendaciones', () => {
             { de_usuario: { toString: () => miId }, a_usuario: { toString: () => 'candidatoA' } },
         ]);
 
-        mockUserFindChain([
-            { _id: 'candidatoB', nombre: 'Candidato B', idiomas: ['español'] },
-        ]);
+        mockUserFindChain([{ _id: 'candidatoB', nombre: 'Candidato B', idiomas: ['español'] }]);
 
         await obtenerRecomendaciones(req, res);
 
         expect(res.json).toHaveBeenCalledWith({
-            data: [
-                { mongo_id: 'candidatoB', _id: 'candidatoB', nombre: 'Candidato B', idiomas: ['español'] },
-            ],
+            data: [{ mongo_id: 'candidatoB', _id: 'candidatoB', nombre: 'Candidato B', idiomas: ['español'] }],
         });
     });
 
@@ -98,9 +94,7 @@ describe('obtenerRecomendaciones', () => {
             { mongo_id: 'candidatoB', nombre: 'Candidato B' },
         ]);
         (Solicitud.find as jest.Mock).mockResolvedValueOnce([]);
-        mockUserFindChain([
-            { _id: 'candidatoA', nombre: 'Candidato A' },
-        ]);
+        mockUserFindChain([{ _id: 'candidatoA', nombre: 'Candidato A' }]);
 
         await obtenerRecomendaciones(req, res);
 

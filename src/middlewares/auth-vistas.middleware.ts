@@ -101,7 +101,6 @@ export async function inyectarUsuarioEnVistas(req: AuthRequest, res: Response, n
     //  middleware nunca bloquea ni redirige
 }
 
-
 export function requireAdminVistas(req: AuthRequest, res: Response, next: NextFunction) {
     if (typeof req.user === 'string' || !req.user || req.user.rol !== 'administrador') {
         return res.redirect('/');
@@ -110,8 +109,11 @@ export function requireAdminVistas(req: AuthRequest, res: Response, next: NextFu
 }
 
 export function requireModeradorVistas(req: AuthRequest, res: Response, next: NextFunction) {
-    if (typeof req.user === 'string' || !req.user ||
-        (req.user.rol !== 'administrador' && req.user.rol !== 'moderador')) {
+    if (
+        typeof req.user === 'string' ||
+        !req.user ||
+        (req.user.rol !== 'administrador' && req.user.rol !== 'moderador')
+    ) {
         return res.redirect('/');
     }
     next();

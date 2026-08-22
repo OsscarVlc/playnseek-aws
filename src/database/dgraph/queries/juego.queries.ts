@@ -153,7 +153,8 @@ async function conectarJuegosAUsuario(usuarioUid: string, juegoUids: string[]): 
     }
 }
 
-export async function sincronizarJuegosUsuario(mongoId: string, mongoIdsJuegos: string[]): Promise<void> { // Reemplazaremos las conexiones "usuario_juega" de un usuario
+export async function sincronizarJuegosUsuario(mongoId: string, mongoIdsJuegos: string[]): Promise<void> {
+    // Reemplazaremos las conexiones "usuario_juega" de un usuario
     try {
         const usuarioUid = await buscarUidUsuarioPorMongoId(mongoId);
 

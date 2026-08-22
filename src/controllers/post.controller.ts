@@ -6,7 +6,6 @@ import { Post } from '../database/mongo/models/post.model';
 import { Grupo } from '../database/mongo/models/grupo.model';
 import { subirImagenACloudinary } from '../services/cloudinary.service';
 
-
 interface FiltroPost {
     activo?: boolean;
     grupo_id?: string;
@@ -39,32 +38,30 @@ export async function crearPost(req: AuthRequest, res: Response) {
             grupo_id,
             contenido,
             imagenes,
-            fecha: new Date()
+            fecha: new Date(),
         });
 
         const doc = await nuevoPost.save();
 
         res.status(HttpStatus.CREATED).json({
-            message: "Post creado exitosamente",
+            message: 'Post creado exitosamente',
             post: {
                 _id: doc._id,
                 usuario_id: doc.usuario_id,
                 grupo_id: doc.grupo_id,
                 contenido: doc.contenido,
                 imagenes: doc.imagenes,
-                fecha: doc.fecha
-            }
+                fecha: doc.fecha,
+            },
         });
-
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
         }
-        res.status(HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
-
 
 export async function listarPosts(req: AuthRequest, res: Response) {
     try {
@@ -76,7 +73,9 @@ export async function listarPosts(req: AuthRequest, res: Response) {
 
         if (req.query.grupo_id) {
             if (typeof req.user === 'string' || !req.user) {
-                return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'Debes iniciar sesión para ver los posts de un grupo' });
+                return res
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .json({ message: 'Debes iniciar sesión para ver los posts de un grupo' });
             }
 
             const miId = req.user._id.toString();
@@ -90,7 +89,9 @@ export async function listarPosts(req: AuthRequest, res: Response) {
             const esIntegrante = grupo.integrantes?.some((i) => i.toString() === miId) ?? false;
 
             if (!esIntegrante && !esAdmin) {
-                return res.status(HttpStatus.FORBIDDEN).json({ message: 'Debes ser integrante del grupo para ver sus posts' });
+                return res
+                    .status(HttpStatus.FORBIDDEN)
+                    .json({ message: 'Debes ser integrante del grupo para ver sus posts' });
             }
 
             filtro.grupo_id = req.query.grupo_id as string;
@@ -102,11 +103,9 @@ export async function listarPosts(req: AuthRequest, res: Response) {
         res.json({ data: posts, pagina, totalPaginas: Math.ceil(total / limite), total });
     } catch (err) {
         console.log(err);
-        res.status(HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
     }
 }
-
-
 
 export async function obtenerPost(req: Request, res: Response) {
     try {

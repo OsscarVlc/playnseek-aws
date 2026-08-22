@@ -13,9 +13,10 @@ export function mostrarIndex(req: Request, res: Response) {
 }
 
 export function mostrarLogin(req: Request, res: Response) {
-    const mensaje = req.query.registrado === 'true'
-        ? 'Cuenta creada. Revisa tu correo para confirmarla antes de iniciar sesión.'
-        : undefined;
+    const mensaje =
+        req.query.registrado === 'true'
+            ? 'Cuenta creada. Revisa tu correo para confirmarla antes de iniciar sesión.'
+            : undefined;
     res.render('login', { mensaje });
 }
 
@@ -23,13 +24,10 @@ export function mostrarRegister(req: Request, res: Response) {
     res.render('register'); // solo mostramos el formulario
 }
 
-
 export function logout(req: Request, res: Response) {
     res.clearCookie('token');
     res.redirect('/');
 }
-
-
 
 export async function mostrarPerfil(req: AuthRequest, res: Response) {
     try {
@@ -40,6 +38,7 @@ export async function mostrarPerfil(req: AuthRequest, res: Response) {
         const usuario = await User.findById(req.user._id)
             .select('-contrasena_hash')
             .populate('juegos_activos.juego_id', 'titulo')
+            .populate('juegos_pasados', 'titulo')
             .lean();
         const token = req.cookies.token;
 
@@ -55,9 +54,8 @@ export async function mostrarPerfil(req: AuthRequest, res: Response) {
             plataformas: Object.values(Plataforma),
             zonasHorarias,
             horariosJuego,
-            diasSemana
+            diasSemana,
         });
-
     } catch (err) {
         console.log(err);
         return res.redirect('/login');
@@ -78,7 +76,7 @@ export async function mostrarDetalleJuego(req: AuthRequest, res: Response, next:
     try {
         const { id } = req.params;
 
-         if (typeof id !== 'string' || !/^[0-9a-fA-F]{24}$/.test(id)) {
+        if (typeof id !== 'string' || !/^[0-9a-fA-F]{24}$/.test(id)) {
             return next();
         }
 
@@ -89,6 +87,7 @@ export async function mostrarDetalleJuego(req: AuthRequest, res: Response, next:
         }
 
         let esActivo = false;
+        let esPasado = false;
         let buscaEquipo = false;
 
         if (typeof req.user === 'object' && req.user !== null) {
@@ -98,16 +97,17 @@ export async function mostrarDetalleJuego(req: AuthRequest, res: Response, next:
                 esActivo = true;
                 buscaEquipo = entrada.busca_equipo;
             }
+            esPasado = (usuario?.juegos_pasados || []).some((jId) => jId.toString() === id);
         }
 
         res.render('juego-detalle', {
             juego,
             esActivo,
+            esPasado,
             buscaEquipo,
             juegoId: id,
-            token: req.cookies.token
+            token: req.cookies.token,
         });
-
     } catch (err) {
         console.log(err);
         res.render('juego-detalle', { error: 'No se encontró el juego' });
@@ -134,14 +134,11 @@ export async function mostrarGrupos(req: AuthRequest, res: Response) {
         const token = req.cookies.token;
 
         res.render('grupos', { grupos, soloMios, token });
-
     } catch (err) {
         console.log(err);
         res.render('grupos', { grupos: [], error: 'No se pudieron cargar los grupos' });
     }
 }
-
-
 
 interface IntegrantePoblado {
     _id: Types.ObjectId;
@@ -167,9 +164,7 @@ export async function mostrarDetalleGrupo(req: AuthRequest, res: Response) {
         if (typeof req.user === 'object' && req.user !== null) {
             miUsuarioId = req.user._id.toString();
             const esAdmin = req.user.rol === 'administrador';
-            const perteneceAlGrupo = (grupo.integrantes || []).some(
-                (i) => i._id.toString() === miUsuarioId
-            );
+            const perteneceAlGrupo = (grupo.integrantes || []).some((i) => i._id.toString() === miUsuarioId);
             esIntegrante = perteneceAlGrupo || esAdmin;
             esLider = grupo.lider_id.toString() === miUsuarioId;
         }
@@ -181,15 +176,13 @@ export async function mostrarDetalleGrupo(req: AuthRequest, res: Response) {
             estaLogueado: miUsuarioId !== null,
             token: req.cookies.token,
             grupoId: id,
-            miUsuarioId
+            miUsuarioId,
         });
-
     } catch (err) {
         console.log(err);
         res.render('grupo-detalle', { error: 'No se encontro el grupo' });
     }
 }
-
 
 export async function mostrarConfirmacion(req: Request, res: Response) {
     try {
@@ -201,15 +194,11 @@ export async function mostrarConfirmacion(req: Request, res: Response) {
         await confirmarCuentaCore(token);
 
         return res.render('confirmacion', { exito: true });
-
     } catch (err) {
         console.log(err);
         return res.render('confirmacion', { error: 'Token de confirmación inválido o expirado' });
     }
 }
-
-
-
 
 export async function mostrarMatch(req: AuthRequest, res: Response) {
     if (typeof req.user === 'string' || !req.user) {
@@ -218,8 +207,6 @@ export async function mostrarMatch(req: AuthRequest, res: Response) {
     const token = req.cookies.token;
     res.render('match', { token });
 }
-
-
 
 export async function mostrarChatPrivado(req: AuthRequest, res: Response) {
     if (typeof req.user === 'string' || !req.user) {
@@ -238,10 +225,9 @@ export async function mostrarChatPrivado(req: AuthRequest, res: Response) {
         otroUsuario,
         token,
         otroUsuarioId: id,
-        miUsuarioId: req.user._id.toString() // nuevo
+        miUsuarioId: req.user._id.toString(), // nuevo
     });
 }
-
 
 export async function mostrarAdminUsuarios(req: AuthRequest, res: Response) {
     if (typeof req.user === 'string' || !req.user) {
@@ -253,7 +239,6 @@ export async function mostrarAdminUsuarios(req: AuthRequest, res: Response) {
 
     res.render('admin-usuarios', { usuarios, token, miUsuarioId: req.user._id.toString() });
 }
-
 
 export function mostrarModeracionReportes(req: AuthRequest, res: Response) {
     if (typeof req.user === 'string' || !req.user) {

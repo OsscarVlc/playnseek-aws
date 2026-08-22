@@ -37,7 +37,6 @@ export async function socketAuthMiddleware(socket: SocketAutenticado, next: (err
         socket.nombreUsuario = usuario.nombre;
         socket.rol = usuario.rol;
         next();
-
     } catch {
         next(new Error('Token inválido'));
     }

@@ -1,9 +1,7 @@
 import { nombreSalaPrivada } from './chatPrivado.socket';
 
 describe('nombreSalaPrivada', () => {
-
     it('debería generar el mismo nombre de sala sin importar el orden de los ids', () => {
-
         // Arrange
         const idOscar = 'abc123';
         const idAna = 'xyz789';
@@ -20,7 +18,6 @@ describe('nombreSalaPrivada', () => {
     });
 
     it('deberia tener el prefijo "privado_" y ambos ids ordenados alfabeticamente', () => {
-
         // Arrange
         const idA = 'zzz';
         const idB = 'aaa';
@@ -33,5 +30,4 @@ describe('nombreSalaPrivada', () => {
         // porque la funcion los ordena antes de juntarlos
         expect(resultado).toBe('privado_aaa_zzz');
     });
-
 });
