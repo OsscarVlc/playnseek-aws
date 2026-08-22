@@ -7,7 +7,7 @@
     "test": "jest",
     "scripts": "tsc",
     "styles": "sass src/styles:public/styles",
-    "build": "npm run scripts && npm run styles && copyfiles -u 1 \"public/**/*\" dist",
+    "build": "npm run scripts && npm run styles && copyfiles -u 1 \"public/**/*\" dist && copyfiles -u 1 \"src/database/dgraph/schemas/**/*\" dist",
     "build:clean": "rimraf dist && tsc",
     "start": "node .",
     "dev": "nodemon src/index.ts",

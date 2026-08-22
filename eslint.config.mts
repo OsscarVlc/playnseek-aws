@@ -43,6 +43,12 @@ export default defineConfig([
     rules: {
       '@typescript-eslint/no-unused-vars': 'off' // este bloque es JS puro
     }
+  },
+  {
+    files: ['**/*.test.ts'],
+    rules: {
+        '@typescript-eslint/no-explicit-any': 'off'
+    }
   }
 ]);
 

@@ -61,7 +61,7 @@ const plataformaMap: Record<string, Plataforma> = {
                     }
                 }, */
 
-function mapearPlataformas(platformsRAWG: IRawgPlatform[]): Plataforma[] {
+export function mapearPlataformas(platformsRAWG: IRawgPlatform[]): Plataforma[] {
     //
     const nombres = platformsRAWG.map((p) => p.platform.name); //extrae solo el nombre desde la estructura anidada
     const traducidas = nombres.map((nombre) => plataformaMap[nombre]);
@@ -84,7 +84,7 @@ function mapearPlataformas(platformsRAWG: IRawgPlatform[]): Plataforma[] {
                 },
  */
 
-function mapearGeneros(genresRAWG: IRawgGenre[]): string[] {
+export function mapearGeneros(genresRAWG: IRawgGenre[]): string[] {
     const generos = genresRAWG.map((g) => g.name);
     return generos;
 }

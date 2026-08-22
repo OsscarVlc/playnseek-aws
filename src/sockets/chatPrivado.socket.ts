@@ -3,7 +3,7 @@ import { SocketAutenticado } from './middlewares/socketAuth.middleware';
 import { Mensaje } from '../database/mongo/models/mensaje.model';
 import { obtenerMatchesDeUsuario } from '../database/dgraph/queries/match.queries';
 
-function nombreSalaPrivada(idA: string, idB: string): string {
+export function nombreSalaPrivada(idA: string, idB: string): string {
     return `privado_${[idA, idB].sort().join('_')}`;
 }
 

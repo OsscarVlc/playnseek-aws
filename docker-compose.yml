@@ -1,0 +1,23 @@
+version: "3.8"
+services:
+  zero:
+    image: dgraph/dgraph:latest
+    volumes:
+      - dgraph_data:/dgraph
+    ports:
+      - "5080:5080"
+      - "6080:6080"
+    command: dgraph zero --my=zero:5080
+
+  alpha:
+    image: dgraph/dgraph:latest
+    volumes:
+      - dgraph_data:/dgraph
+    ports:
+      - "8080:8080"
+      - "9080:9080"
+    command: dgraph alpha --my=alpha:7080 --zero=zero:5080 --security whitelist=0.0.0.0/0
+
+
+volumes:
+  dgraph_data:
