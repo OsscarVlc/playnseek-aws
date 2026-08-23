@@ -13,12 +13,11 @@ export function createApp() {
 
     app.use(express.json());
     app.use(cookieParser());
-    app.use(inyectarUsuarioEnVistas); // middleware global para inyectar usuario en vistas
+    app.use(inyectarUsuarioEnVistas);
 
     app.use(express.urlencoded({ extended: true }));
-    app.use(express.static(path.join(__dirname, '..', 'public')));
+    app.use(express.static(path.join(__dirname, '..', '..', 'FRONTEND', 'public')));
 
-    // Configuración de Handlebars
     app.engine(
         'handlebars',
         engine({
@@ -26,7 +25,7 @@ export function createApp() {
         }),
     );
     app.set('view engine', 'handlebars');
-    app.set('views', path.join(__dirname, '..', 'views'));
+    app.set('views', path.join(__dirname, '..', '..', 'FRONTEND', 'views'));
 
     app.use(routes);
 
