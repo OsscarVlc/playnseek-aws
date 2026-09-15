@@ -1,6 +1,9 @@
 import js from "@eslint/js";
 import globals from "globals";
 import tseslint from "typescript-eslint";
+import sonarjs from "eslint-plugin-sonarjs";
+import importX from "eslint-plugin-import-x";
+import jsdoc from "eslint-plugin-jsdoc";
 import { defineConfig } from "eslint/config";
 
 export default defineConfig([
@@ -49,8 +52,17 @@ export default defineConfig([
     rules: {
         '@typescript-eslint/no-explicit-any': 'off'
     }
+  },
+
+  {
+    files: ['src/**/*.ts'],
+    plugins: { sonarjs, "import-x": importX, jsdoc },
+    rules: {
+      'sonarjs/cognitive-complexity': ['warn', 15],
+      'sonarjs/no-duplicate-string': ['warn', { threshold: 3 }],
+      'import-x/no-cycle': 'error',
+      'complexity': ['warn', 10],
+      'jsdoc/require-description': 'warn'
+    }
   }
 ]);
-
-
-
