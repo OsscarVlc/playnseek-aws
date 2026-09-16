@@ -5,6 +5,9 @@ import { obtenerRecomendacionesDgraph } from '../database/dgraph/queries/recomen
 import { Solicitud } from '../database/mongo/models/solicitud.model';
 import { User } from '../database/mongo/models/user.model';
 
+const NOMBRE_CANDIDATO_A = 'Candidato A';
+const NOMBRE_CANDIDATO_B = 'Candidato B';
+
 jest.mock('../database/dgraph/queries/recomendacion.queries');
 
 jest.mock('../database/mongo/models/solicitud.model', () => ({
@@ -59,20 +62,20 @@ describe('obtenerRecomendaciones', () => {
         } as unknown as Response;
 
         (obtenerRecomendacionesDgraph as jest.Mock).mockResolvedValueOnce([
-            { mongo_id: 'candidatoA', nombre: 'Candidato A' },
-            { mongo_id: 'candidatoB', nombre: 'Candidato B' },
+            { mongo_id: 'candidatoA', nombre: NOMBRE_CANDIDATO_A },
+            { mongo_id: 'candidatoB', nombre: NOMBRE_CANDIDATO_B },
         ]);
 
         (Solicitud.find as jest.Mock).mockResolvedValueOnce([
             { de_usuario: { toString: () => miId }, a_usuario: { toString: () => 'candidatoA' } },
         ]);
 
-        mockUserFindChain([{ _id: 'candidatoB', nombre: 'Candidato B', idiomas: ['español'] }]);
+        mockUserFindChain([{ _id: 'candidatoB', nombre: NOMBRE_CANDIDATO_B, idiomas: ['español'] }]);
 
         await obtenerRecomendaciones(req, res);
 
         expect(res.json).toHaveBeenCalledWith({
-            data: [{ mongo_id: 'candidatoB', _id: 'candidatoB', nombre: 'Candidato B', idiomas: ['español'] }],
+            data: [{ mongo_id: 'candidatoB', _id: 'candidatoB', nombre: NOMBRE_CANDIDATO_B, idiomas: ['español'] }],
         });
     });
 
@@ -90,17 +93,17 @@ describe('obtenerRecomendaciones', () => {
         } as unknown as Response;
 
         (obtenerRecomendacionesDgraph as jest.Mock).mockResolvedValueOnce([
-            { mongo_id: 'candidatoA', nombre: 'Candidato A' },
-            { mongo_id: 'candidatoB', nombre: 'Candidato B' },
+            { mongo_id: 'candidatoA', nombre: NOMBRE_CANDIDATO_A },
+            { mongo_id: 'candidatoB', nombre: NOMBRE_CANDIDATO_B },
         ]);
         (Solicitud.find as jest.Mock).mockResolvedValueOnce([]);
-        mockUserFindChain([{ _id: 'candidatoA', nombre: 'Candidato A' }]);
+        mockUserFindChain([{ _id: 'candidatoA', nombre: NOMBRE_CANDIDATO_A }]);
 
         await obtenerRecomendaciones(req, res);
 
         expect(obtenerRecomendacionesDgraph).toHaveBeenCalledWith(miId, 2); // limite(1) * 2
         expect(res.json).toHaveBeenCalledWith({
-            data: [{ mongo_id: 'candidatoA', _id: 'candidatoA', nombre: 'Candidato A' }],
+            data: [{ mongo_id: 'candidatoA', _id: 'candidatoA', nombre: NOMBRE_CANDIDATO_A }],
         });
     });
 });

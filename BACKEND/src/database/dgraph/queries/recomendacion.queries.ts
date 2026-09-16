@@ -11,6 +11,33 @@ export interface CandidatoRecomendado {
 // 2. Plataforma en común,
 // 3. Juegos en común. Excluye al propio usuario y a quienes ya son match.
 
+/**
+ * Combina los niveles de candidatos respetando su prioridad,
+ * sin duplicar usuarios y aplicando el límite indicado.
+ */
+function combinarCandidatosPorPrioridad(
+    niveles: CandidatoRecomendado[][],
+    limite: number,
+): CandidatoRecomendado[] {
+    // Combinamos los 3 niveles respetando el orden de prioridad,
+    // sin repetir el mismo usuario si aparece en más de un nivel
+    const vistos = new Set<string>();
+    const resultado: CandidatoRecomendado[] = [];
+
+    for (const nivel of niveles) {
+        for (const candidato of nivel) {
+            if (resultado.length >= limite) break;
+            if (!vistos.has(candidato.mongo_id)) {
+                vistos.add(candidato.mongo_id);
+                resultado.push({ mongo_id: candidato.mongo_id, nombre: candidato.nombre });
+            }
+        }
+        if (resultado.length >= limite) break;
+    }
+
+    return resultado;
+}
+
 export async function obtenerRecomendacionesDgraph(
     mongoId: string,
     limite: number = 20,
@@ -51,25 +78,9 @@ export async function obtenerRecomendacionesDgraph(
         const res = await txn.queryWithVars(query, { $mongoId: mongoId });
         const data = res.getJson();
 
-        // Combinamos los 3 niveles respetando el orden de prioridad,
-        // sin repetir el mismo usuario si aparece en más de un nivel
-        const vistos = new Set<string>();
-        const resultado: CandidatoRecomendado[] = [];
-
         const niveles = [data.porIdioma || [], data.porPlataforma || [], data.porJuego || []];
 
-        for (const nivel of niveles) {
-            for (const candidato of nivel) {
-                if (resultado.length >= limite) break;
-                if (!vistos.has(candidato.mongo_id)) {
-                    vistos.add(candidato.mongo_id);
-                    resultado.push({ mongo_id: candidato.mongo_id, nombre: candidato.nombre });
-                }
-            }
-            if (resultado.length >= limite) break;
-        }
-
-        return resultado;
+        return combinarCandidatosPorPrioridad(niveles, limite);
     } catch (err) {
         console.error(`Error obteniendo recomendaciones de Dgraph para ${mongoId}:`, err);
         throw err;

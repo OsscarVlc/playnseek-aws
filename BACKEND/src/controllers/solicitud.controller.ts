@@ -5,10 +5,32 @@ import { Solicitud } from '../database/mongo/models/solicitud.model';
 import { EstadoSolicitud } from '../types/solicitud.types';
 import { crearMatchEnDgraph } from '../database/dgraph/queries/match.queries';
 
+const MSG_NO_AUTENTICADO = 'No autenticado';
+const MSG_ID_INVALIDO = 'Id Invalido';
+const MSG_ERROR_SERVIDOR = 'Error del servidor';
+
+/**
+ * Maneja los errores de las operaciones que distinguen CastError.
+ */
+function manejarErrorSolicitud(err: unknown, res: Response) {
+    console.log(err);
+    if ((err as Error).name === 'CastError') {
+        return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
+    }
+    return res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
+}
+
+/**
+ * Obtiene el estado correspondiente a una respuesta previamente validada.
+ */
+function obtenerEstadoRespuesta(respuesta: string): EstadoSolicitud {
+    return respuesta === 'aceptar' ? EstadoSolicitud.ACEPTADA : EstadoSolicitud.RECHAZADA;
+}
+
 export async function enviarSolicitud(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const deUsuario = req.user._id.toString();
@@ -64,18 +86,14 @@ export async function enviarSolicitud(req: AuthRequest, res: Response) {
 
         return res.status(HttpStatus.CREATED).json({ message: 'Solicitud enviada exitosamente', solicitud: doc });
     } catch (err) {
-        console.log(err);
-        if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return manejarErrorSolicitud(err, res);
     }
 }
 
 export async function listarSolicitudesRecibidas(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const solicitudes = await Solicitud.find({
@@ -86,20 +104,20 @@ export async function listarSolicitudesRecibidas(req: AuthRequest, res: Response
         return res.json({ data: solicitudes });
     } catch (err) {
         console.log(err);
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 
 export async function responderSolicitud(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const { id } = req.params; // id de la solicitud
         const { respuesta } = req.body; // "aceptar" o "rechazar"
 
-        if (respuesta !== 'aceptar' && respuesta !== 'rechazar') {
+        if (!['aceptar', 'rechazar'].includes(respuesta)) {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'respuesta debe ser "aceptar" o "rechazar"' });
         }
 
@@ -119,7 +137,7 @@ export async function responderSolicitud(req: AuthRequest, res: Response) {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Esta solicitud ya fue respondida' });
         }
 
-        solicitud.estado = respuesta === 'aceptar' ? EstadoSolicitud.ACEPTADA : EstadoSolicitud.RECHAZADA;
+        solicitud.estado = obtenerEstadoRespuesta(respuesta);
         solicitud.fecha_respuesta = new Date();
         await solicitud.save();
 
@@ -134,18 +152,14 @@ export async function responderSolicitud(req: AuthRequest, res: Response) {
 
         return res.json({ message: 'Solicitud rechazada' });
     } catch (err) {
-        console.log(err);
-        if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return manejarErrorSolicitud(err, res);
     }
 }
 
 export async function listarSolicitudesEnviadas(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const solicitudes = await Solicitud.find({
@@ -155,14 +169,14 @@ export async function listarSolicitudesEnviadas(req: AuthRequest, res: Response)
         return res.json({ data: solicitudes });
     } catch (err) {
         console.log(err);
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 
 export async function cancelarSolicitud(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const { id } = req.params;
@@ -192,10 +206,6 @@ export async function cancelarSolicitud(req: AuthRequest, res: Response) {
 
         return res.json({ message: 'Solicitud cancelada exitosamente' });
     } catch (err) {
-        console.log(err);
-        if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return manejarErrorSolicitud(err, res);
     }
 }

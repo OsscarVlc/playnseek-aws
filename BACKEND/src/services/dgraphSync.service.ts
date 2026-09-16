@@ -4,17 +4,26 @@ import { sincronizarPlataformasUsuario } from '../database/dgraph/queries/plataf
 import { sincronizarJuegosUsuario } from '../database/dgraph/queries/juego.queries';
 import { IUser } from '../types/user.types';
 
+/**
+ * Construye los campos básicos que se actualizarán en Dgraph.
+ */
+function construirCamposUsuarioDgraph(userUpdate: Partial<IUser>): CamposUsuarioDgraph {
+    const camposDgraph: CamposUsuarioDgraph = {}; // creamos un objeto vacio
+    if (userUpdate.nombre !== undefined) camposDgraph.nombre = userUpdate.nombre; // pasamos los datos que nos interesan
+    if (userUpdate.edad !== undefined) camposDgraph.edad = userUpdate.edad; // pasamos los datos que nos interesan
+    if (userUpdate.sexo !== undefined) camposDgraph.genero = userUpdate.sexo; // pasamos los datos que nos interesan
+    if (userUpdate.rol !== undefined) camposDgraph.rol = userUpdate.rol; // pasamos los datos que nos interesan
+
+    return camposDgraph;
+}
+
 // centraliza toda la sincronizacion de un usuario con dgraph tras una actualizacion
 // nunca lanza errores hacia arriba, cada pieza falla en silencio (solo loggea)
 // porque un fallo de dgraph no debe romper una actualizacion exitosa en mongo
 export async function sincronizarUsuarioConDgraph(mongoId: string, userUpdate: Partial<IUser>) {
     // actualizar datos basicos en dgraph -----------------------------------------------------------------------------
     try {
-        const camposDgraph: CamposUsuarioDgraph = {}; // creamos un objeto vacio
-        if (userUpdate.nombre !== undefined) camposDgraph.nombre = userUpdate.nombre; // pasamos los datos que nos interesan
-        if (userUpdate.edad !== undefined) camposDgraph.edad = userUpdate.edad; // pasamos los datos que nos interesan
-        if (userUpdate.sexo !== undefined) camposDgraph.genero = userUpdate.sexo; // pasamos los datos que nos interesan
-        if (userUpdate.rol !== undefined) camposDgraph.rol = userUpdate.rol; // pasamos los datos que nos interesan
+        const camposDgraph = construirCamposUsuarioDgraph(userUpdate);
 
         if (Object.keys(camposDgraph).length > 0) {
             // verificamos si hay algo que actualizar
@@ -23,6 +32,7 @@ export async function sincronizarUsuarioConDgraph(mongoId: string, userUpdate: P
     } catch (err) {
         console.error(`usuario ${mongoId} actualizado en mongo pero FALLO la sincronizacion con dgraph`, err);
     }
+    // -----------------------------------------------------------------------------------------------------------------
     // -----------------------------------------------------------------------------------------------------------------
 
     // sincronizar idiomas en dgraph ------------------------------------------------------------------------------------

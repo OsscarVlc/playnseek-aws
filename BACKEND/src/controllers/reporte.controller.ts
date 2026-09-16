@@ -5,6 +5,10 @@ import { Reporte } from '../database/mongo/models/reporte.model';
 import { IReporte } from '../types/reporte.types';
 import { estadoReporte } from '../types/reporte.types';
 
+const MSG_NO_AUTENTICADO = 'No autenticado';
+const MSG_ID_INVALIDO = 'Id Invalido';
+const MSG_ERROR_SERVIDOR = 'Error del servidor';
+
 interface FiltroReporte {
     estado?: estadoReporte;
 }
@@ -12,7 +16,7 @@ interface FiltroReporte {
 export async function crearReporte(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const { reportado_id, motivo, descripcion, grupo_id, post_id, comentario_id } = req.body;
@@ -49,16 +53,16 @@ export async function crearReporte(req: AuthRequest, res: Response) {
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
-        res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 
 export async function listarReportes(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const pagina = Number(req.query.pagina) || 1;
@@ -85,14 +89,14 @@ export async function listarReportes(req: AuthRequest, res: Response) {
         });
     } catch (err) {
         console.log(err);
-        res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 
 export async function obtenerReporte(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const { id } = req.params;
@@ -106,16 +110,16 @@ export async function obtenerReporte(req: AuthRequest, res: Response) {
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 
 export async function actualizarReporte(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const { id } = req.params;
@@ -137,8 +141,8 @@ export async function actualizarReporte(req: AuthRequest, res: Response) {
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }

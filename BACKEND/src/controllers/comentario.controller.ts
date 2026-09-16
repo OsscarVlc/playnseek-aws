@@ -3,6 +3,11 @@ import { AuthRequest } from '../types/auth-request';
 import { HttpStatus } from '../types/https-status';
 import { Comentario } from '../database/mongo/models/comentario.model';
 
+// agregamos constantes para resolver warnings con eslint
+const MSG_NO_AUTENTICADO = 'No autenticado';
+const MSG_ID_INVALIDO = 'Id Invalido';
+const MSG_ERROR_SERVIDOR = 'Error del servidor';
+
 interface FiltroComentario {
     post_id?: string;
 }
@@ -10,7 +15,7 @@ interface FiltroComentario {
 export async function crearComentario(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const { post_id, contenido } = req.body;
@@ -50,10 +55,10 @@ export async function crearComentario(req: AuthRequest, res: Response) {
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
         res.status(HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
+            message: MSG_ERROR_SERVIDOR,
         });
     }
 }
@@ -81,7 +86,7 @@ export async function listarComentarios(req: Request, res: Response) {
     } catch (err) {
         console.log(err);
         res.status(HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
+            message: MSG_ERROR_SERVIDOR,
         });
     }
 }
@@ -89,7 +94,7 @@ export async function listarComentarios(req: Request, res: Response) {
 export async function eliminarComentario(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const { id } = req.params;
@@ -109,16 +114,16 @@ export async function eliminarComentario(req: AuthRequest, res: Response) {
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 
 export async function actualizarComentario(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const { id } = req.params;
@@ -148,8 +153,8 @@ export async function actualizarComentario(req: AuthRequest, res: Response) {
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }

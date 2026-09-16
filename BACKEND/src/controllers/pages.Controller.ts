@@ -8,6 +8,34 @@ import { confirmarCuentaCore } from '../services/confirmacion.service';
 import { NextFunction } from 'express';
 import { Types } from 'mongoose';
 
+// agregamos constantes para resolver warnings con eslint
+const VISTA_JUEGO_DETALLE = 'juego-detalle';
+const VISTA_GRUPO_DETALLE = 'grupo-detalle';
+
+/**
+ * Obtiene si el usuario tiene el juego activo o pasado
+ * y si está buscando equipo para ese juego.
+ */
+async function obtenerEstadoJuegoUsuario(req: AuthRequest, juegoId: string) {
+    let esActivo = false;
+    let esPasado = false;
+    let buscaEquipo = false;
+
+    if (typeof req.user === 'object' && req.user !== null) {
+        const usuario = await User.findById(req.user._id).lean();
+        const entrada = (usuario?.juegos_activos || []).find((j) => j.juego_id.toString() === juegoId);
+
+        if (entrada) {
+            esActivo = true;
+            buscaEquipo = entrada.busca_equipo;
+        }
+
+        esPasado = (usuario?.juegos_pasados || []).some((jId) => jId.toString() === juegoId);
+    }
+
+    return { esActivo, esPasado, buscaEquipo };
+}
+
 export function mostrarIndex(req: Request, res: Response) {
     res.render('index'); // res.locals.estaLogueado ya está disponible en la vista sin pasarlo aquí
 }
@@ -83,24 +111,12 @@ export async function mostrarDetalleJuego(req: AuthRequest, res: Response, next:
         const juego = await Juego.findById(id).lean();
 
         if (!juego || !juego.activo) {
-            return res.render('juego-detalle', { error: 'No se encontró el juego' });
+            return res.render(VISTA_JUEGO_DETALLE, { error: 'No se encontró el juego' });
         }
 
-        let esActivo = false;
-        let esPasado = false;
-        let buscaEquipo = false;
+        const { esActivo, esPasado, buscaEquipo } = await obtenerEstadoJuegoUsuario(req, id);
 
-        if (typeof req.user === 'object' && req.user !== null) {
-            const usuario = await User.findById(req.user._id).lean();
-            const entrada = (usuario?.juegos_activos || []).find((j) => j.juego_id.toString() === id);
-            if (entrada) {
-                esActivo = true;
-                buscaEquipo = entrada.busca_equipo;
-            }
-            esPasado = (usuario?.juegos_pasados || []).some((jId) => jId.toString() === id);
-        }
-
-        res.render('juego-detalle', {
+        res.render(VISTA_JUEGO_DETALLE, {
             juego,
             esActivo,
             esPasado,
@@ -110,7 +126,7 @@ export async function mostrarDetalleJuego(req: AuthRequest, res: Response, next:
         });
     } catch (err) {
         console.log(err);
-        res.render('juego-detalle', { error: 'No se encontró el juego' });
+        res.render(VISTA_JUEGO_DETALLE, { error: 'No se encontró el juego' });
     }
 }
 
@@ -154,7 +170,7 @@ export async function mostrarDetalleGrupo(req: AuthRequest, res: Response) {
             .lean();
 
         if (!grupo || !grupo.activo) {
-            return res.render('grupo-detalle', { error: 'No se encontro el grupo' });
+            return res.render(VISTA_GRUPO_DETALLE, { error: 'No se encontro el grupo' });
         }
 
         let miUsuarioId: string | null = null;
@@ -169,7 +185,7 @@ export async function mostrarDetalleGrupo(req: AuthRequest, res: Response) {
             esLider = grupo.lider_id.toString() === miUsuarioId;
         }
 
-        res.render('grupo-detalle', {
+        res.render(VISTA_GRUPO_DETALLE, {
             grupo,
             esIntegrante,
             esLider,
@@ -180,7 +196,7 @@ export async function mostrarDetalleGrupo(req: AuthRequest, res: Response) {
         });
     } catch (err) {
         console.log(err);
-        res.render('grupo-detalle', { error: 'No se encontro el grupo' });
+        res.render(VISTA_GRUPO_DETALLE, { error: 'No se encontro el grupo' });
     }
 }
 

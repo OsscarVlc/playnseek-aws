@@ -6,15 +6,73 @@ import { Post } from '../database/mongo/models/post.model';
 import { Grupo } from '../database/mongo/models/grupo.model';
 import { subirImagenACloudinary } from '../services/cloudinary.service';
 
+const MSG_NO_AUTENTICADO = 'No autenticado';
+const MSG_ID_INVALIDO = 'Id Invalido';
+const MSG_ERROR_SERVIDOR = 'Error del servidor';
+const MSG_POST_NO_ENCONTRADO = 'No se encontro el post';
+
 interface FiltroPost {
     activo?: boolean;
     grupo_id?: string;
 }
 
+/**
+ * Verifica que el usuario pueda consultar los posts del grupo.
+ * Si no tiene acceso, envía la respuesta correspondiente y devuelve false.
+ */
+async function validarAccesoPostsGrupo(req: AuthRequest, res: Response): Promise<boolean> {
+    if (typeof req.user === 'string' || !req.user) {
+        res.status(HttpStatus.UNAUTHORIZED).json({
+            message: 'Debes iniciar sesión para ver los posts de un grupo',
+        });
+        return false;
+    }
+
+    const miId = req.user._id.toString();
+    const esAdmin = req.user.rol === 'administrador';
+
+    const grupo = await Grupo.findById(req.query.grupo_id);
+    if (!grupo || !grupo.activo) {
+        res.status(HttpStatus.NOT_FOUND).json({ message: 'Grupo no encontrado' });
+        return false;
+    }
+
+    const esIntegrante = grupo.integrantes?.some((i) => i.toString() === miId) ?? false;
+
+    if (!esIntegrante && !esAdmin) {
+        res.status(HttpStatus.FORBIDDEN).json({
+            message: 'Debes ser integrante del grupo para ver sus posts',
+        });
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Detecta si se intenta modificar algún campo protegido del post.
+ */
+function tieneCamposProtegidosPost(datos: Partial<IPost>): boolean {
+    return datos.grupo_id !== undefined || datos.usuario_id !== undefined || datos.activo !== undefined;
+}
+
+/**
+ * Construye la actualización con los campos editables que se recibieron.
+ */
+function construirActualizacionPost(datos: Partial<IPost>): Partial<IPost> {
+    const { contenido, imagenes } = datos;
+
+    const postUpdate: Partial<IPost> = {}; // creamos el objeto de actializacion, con partial porque no le pasaremos todas las propiedades
+    if (contenido !== undefined) postUpdate.contenido = contenido; // si recibimos contenido lo actualizamos
+    if (imagenes !== undefined) postUpdate.imagenes = imagenes; // si recibimos imagenes las actualizamos
+
+    return postUpdate;
+}
+
 export async function crearPost(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const { contenido, grupo_id } = req.body;
@@ -57,9 +115,9 @@ export async function crearPost(req: AuthRequest, res: Response) {
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
-        res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 
@@ -72,27 +130,8 @@ export async function listarPosts(req: AuthRequest, res: Response) {
         const filtro: FiltroPost = req.query.incluirInactivos === 'true' ? {} : { activo: true };
 
         if (req.query.grupo_id) {
-            if (typeof req.user === 'string' || !req.user) {
-                return res
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .json({ message: 'Debes iniciar sesión para ver los posts de un grupo' });
-            }
-
-            const miId = req.user._id.toString();
-            const esAdmin = req.user.rol === 'administrador';
-
-            const grupo = await Grupo.findById(req.query.grupo_id);
-            if (!grupo || !grupo.activo) {
-                return res.status(HttpStatus.NOT_FOUND).json({ message: 'Grupo no encontrado' });
-            }
-
-            const esIntegrante = grupo.integrantes?.some((i) => i.toString() === miId) ?? false;
-
-            if (!esIntegrante && !esAdmin) {
-                return res
-                    .status(HttpStatus.FORBIDDEN)
-                    .json({ message: 'Debes ser integrante del grupo para ver sus posts' });
-            }
+            const tieneAcceso = await validarAccesoPostsGrupo(req, res);
+            if (!tieneAcceso) return;
 
             filtro.grupo_id = req.query.grupo_id as string;
         }
@@ -103,7 +142,7 @@ export async function listarPosts(req: AuthRequest, res: Response) {
         res.json({ data: posts, pagina, totalPaginas: Math.ceil(total / limite), total });
     } catch (err) {
         console.log(err);
-        res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 
@@ -114,7 +153,7 @@ export async function obtenerPost(req: Request, res: Response) {
 
         if (!post || !post.activo) {
             return res.status(HttpStatus.NOT_FOUND).json({
-                message: 'No se encontro el post',
+                message: MSG_POST_NO_ENCONTRADO,
             });
         }
 
@@ -123,11 +162,11 @@ export async function obtenerPost(req: Request, res: Response) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({
-                message: 'Id Invalido',
+                message: MSG_ID_INVALIDO,
             });
         }
         return res.status(HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
+            message: MSG_ERROR_SERVIDOR,
         });
     }
 }
@@ -136,13 +175,13 @@ export async function actualizarPost(req: AuthRequest, res: Response) {
     // volvemos a requerir saber quien es para ver si tiene permisos
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const { id } = req.params; // obtenemos el id que nos enviaron
         const { contenido, imagenes, usuario_id, grupo_id, activo } = req.body; // recibimos los datos que nos enviaron
 
-        if (grupo_id !== undefined || usuario_id !== undefined || activo !== undefined) {
+        if (tieneCamposProtegidosPost({ grupo_id, usuario_id, activo })) {
             return res.status(HttpStatus.BAD_REQUEST).json({
                 message: 'No se puede modificar grupo_id, usuario_id o activo desde aquí',
             });
@@ -150,7 +189,7 @@ export async function actualizarPost(req: AuthRequest, res: Response) {
 
         const post = await Post.findById(id); // buscamos el post
         if (!post || !post.activo) {
-            return res.status(HttpStatus.NOT_FOUND).json({ message: 'No se encontro el post' });
+            return res.status(HttpStatus.NOT_FOUND).json({ message: MSG_POST_NO_ENCONTRADO });
         }
 
         if (post.usuario_id.toString() !== req.user._id.toString()) {
@@ -158,32 +197,30 @@ export async function actualizarPost(req: AuthRequest, res: Response) {
             return res.status(HttpStatus.FORBIDDEN).json({ message: 'Solo el autor puede editar el post' });
         }
 
-        const postUpdate: Partial<IPost> = {}; // creamos el objeto de actializacion, con partial porque no le pasaremos todas las propiedades
-        if (contenido !== undefined) postUpdate.contenido = contenido; // si recibimos contenido lo actualizamos
-        if (imagenes !== undefined) postUpdate.imagenes = imagenes; // si recibimos imagenes las actualizamos
+        const postUpdate = construirActualizacionPost({ contenido, imagenes });
 
         const postActualizado = await Post.findByIdAndUpdate(id, postUpdate, { new: true }); // el new true es para devolver el doc actualziado
         return res.json(postActualizado);
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 
 export async function eliminarPost(req: AuthRequest, res: Response) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
 
         const { id } = req.params;
         const post = await Post.findById(id);
 
         if (!post) {
-            return res.status(HttpStatus.NOT_FOUND).json({ message: 'No se encontro el post' });
+            return res.status(HttpStatus.NOT_FOUND).json({ message: MSG_POST_NO_ENCONTRADO });
         }
 
         //el usuario autenticado sea el autor
@@ -202,8 +239,8 @@ export async function eliminarPost(req: AuthRequest, res: Response) {
     } catch (err) {
         console.log(err);
         if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }

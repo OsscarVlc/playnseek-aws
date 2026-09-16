@@ -3,7 +3,7 @@ import { User } from '../database/mongo/models/user.model';
 import { HttpStatus } from '../types/https-status';
 import bcrypt from 'bcrypt';
 import { generateToken, generarTokenConfirmacion } from '../utils/jwt';
-import { AuthRequest } from '../types/auth-request';
+import { AuthRequest, UsuarioAutenticado } from '../types/auth-request';
 import { IUser } from '../types/user.types';
 import { crearUsuarioEnDgraph } from '../database/dgraph/queries/user.queries'; // para ponerlo en dgraph
 import { sincronizarUsuarioConDgraph } from '../services/dgraphSync.service';
@@ -12,6 +12,86 @@ import { subirImagenACloudinary } from '../services/cloudinary.service';
 import { confirmarCuentaCore } from '../services/confirmacion.service';
 import { Types } from 'mongoose';
 import { sincronizarJuegosUsuario } from '../database/dgraph/queries/juego.queries';
+
+// ---------- Constantes de mensajes (evita strings repetidos) ----------
+const MSG_NO_AUTENTICADO = 'No autenticado';
+const MSG_USUARIO_NO_ENCONTRADO = 'Usuario no encontrado';
+const MSG_ID_INVALIDO = 'Id Invalido';
+const MSG_ERROR_SERVIDOR = 'Error del servidor';
+const MSG_JUEGO_ID_INVALIDO = 'Id de juego inválido';
+const CAMPOS_USUARIO_SIN_CONTRASENA = '-contrasena_hash';
+
+// ---------- Funciones auxiliares (reducen complejidad y duplicación) ----------
+
+/**
+ * Maneja los errores de forma centralizada: distingue CastError (id con formato
+ * inválido) de cualquier otro error inesperado del servidor.
+ */
+function manejarErrorControlador(err: unknown, res: Response) {
+    console.log(err);
+    if ((err as Error).name === 'CastError') {
+        return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
+    }
+    return res.status(HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
+}
+
+/**
+ * Verifica que el request tenga un usuario autenticado válido (no string, no undefined).
+ * Si no lo tiene, responde 401 y devuelve null; si lo tiene, lo devuelve.
+ */
+function obtenerUsuarioAutenticado(req: AuthRequest, res: Response): UsuarioAutenticado | null {
+    if (typeof req.user === 'string' || !req.user) {
+        res.status(HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
+        return null;
+    }
+    return req.user as UsuarioAutenticado;
+}
+
+/**
+ * Valida que el parámetro de ruta juegoId venga como string.
+ * Si no, responde 400 y devuelve null.
+ */
+function obtenerJuegoIdValido(req: AuthRequest, res: Response): string | null {
+    const { juegoId } = req.params;
+    if (typeof juegoId !== 'string') {
+        res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_JUEGO_ID_INVALIDO });
+        return null;
+    }
+    return juegoId;
+}
+
+/**
+ * Busca un usuario por su _id de Mongo. Si no existe, responde 404 y devuelve null.
+ */
+async function buscarUsuarioPorId(id: Types.ObjectId, res: Response) {
+    const usuario = await User.findById(id);
+    if (!usuario) {
+        res.status(HttpStatus.NOT_FOUND).json({ message: MSG_USUARIO_NO_ENCONTRADO });
+        return null;
+    }
+    return usuario;
+}
+
+/**
+ * Sincroniza la lista actual de juegos_activos del usuario con Dgraph.
+ * No bloquea el flujo si falla, solo lo deja registrado en consola.
+ */
+async function sincronizarJuegosDelUsuarioEnDgraph(
+    usuarioId: string,
+    juegosActivos: { juego_id: Types.ObjectId }[],
+) {
+    try {
+        const idsJuegos = juegosActivos.map((j) => j.juego_id.toString());
+        await sincronizarJuegosUsuario(usuarioId, idsJuegos);
+    } catch (err) {
+        console.error(
+            `usuario ${usuarioId} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`,
+            err,
+        );
+    }
+}
+
+// ---------- Controllers ----------
 
 export async function registerUser(req: Request, res: Response) {
     try {
@@ -67,10 +147,7 @@ export async function registerUser(req: Request, res: Response) {
             });
         }
     } catch (err) {
-        console.log(err);
-        res.status(HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
-        });
+        manejarErrorControlador(err, res);
     }
 }
 
@@ -111,25 +188,24 @@ export async function loginUser(req: Request, res: Response) {
 }
 
 export function getMe(req: AuthRequest, res: Response) {
-    if (typeof req.user === 'string' || !req.user) {
-        return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-    }
+    const usuario = obtenerUsuarioAutenticado(req, res);
+    if (!usuario) return;
 
     res.json({
         message: 'Usuario autenticado',
         user: {
-            id: req.user._id,
-            correo: req.user.correo,
-            rol: req.user.rol,
+            id: usuario._id,
+            correo: usuario.correo,
+            rol: usuario.rol,
         },
     });
 }
 
 export async function actualizarUsuario(req: AuthRequest, res: Response) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth) return;
+
         const { rol, password, correo_confirmado, plataformas, ...resto } = req.body;
         // sacar el rol y password del objeto de actualizacion para hacer validaciones
         // todo lo demas se agrupa dentro de resto como un objeto
@@ -166,41 +242,33 @@ export async function actualizarUsuario(req: AuthRequest, res: Response) {
             userUpdate.foto_perfil = await subirImagenACloudinary(req.file.buffer);
         }
 
-        const usuarioActualizado = await User.findByIdAndUpdate(req.user._id, userUpdate, { new: true }).select(
-            '-contrasena_hash',
+        const usuarioActualizado = await User.findByIdAndUpdate(usuarioAuth._id, userUpdate, { new: true }).select(
+            CAMPOS_USUARIO_SIN_CONTRASENA,
         );
-        // select('-contrasena_hash') es para decirle a mongoose que traiga todo el documento
+        // select(CAMPOS_USUARIO_SIN_CONTRASENA) es para decirle a mongoose que traiga todo el documento
         // sin contar ese campo y evitar filtrar la contrasena
 
         if (!usuarioActualizado) {
-            return res.status(HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
+            return res.status(HttpStatus.NOT_FOUND).json({ message: MSG_USUARIO_NO_ENCONTRADO });
         }
 
         // toda la sincronizacion con dgraph (datos basicos, idiomas, plataformas) vive
         // en dgraphSync.service.ts, aqui solo se llama una vez con lo que cambio
-        await sincronizarUsuarioConDgraph(req.user._id.toString(), userUpdate);
+        await sincronizarUsuarioConDgraph(usuarioAuth._id.toString(), userUpdate);
 
         return res.json(usuarioActualizado);
     } catch (err) {
-        console.log(err);
-        if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 
 export async function eliminarUsuario(req: AuthRequest, res: Response) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
+        const usuario = obtenerUsuarioAutenticado(req, res);
+        if (!usuario) return;
 
-        const usuarioEliminado = await User.findById(req.user._id);
-
-        if (!usuarioEliminado) {
-            return res.status(HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
-        }
+        const usuarioEliminado = await buscarUsuarioPorId(usuario._id, res);
+        if (!usuarioEliminado) return;
 
         //agregar sufijo de eliminacion
         usuarioEliminado.correo += `_eliminado_${Date.now()}`;
@@ -209,8 +277,7 @@ export async function eliminarUsuario(req: AuthRequest, res: Response) {
 
         return res.json({ message: 'Usuario eliminado exitosamente' });
     } catch (err) {
-        console.log(err);
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 
@@ -222,7 +289,7 @@ export async function listarUsuarios(req: Request, res: Response) {
 
         const usuariosActivos = req.query.incluirInactivos === 'true' ? {} : { isActive: true };
 
-        const usuarios = await User.find(usuariosActivos).select('-contrasena_hash').skip(skip).limit(limite);
+        const usuarios = await User.find(usuariosActivos).select(CAMPOS_USUARIO_SIN_CONTRASENA).skip(skip).limit(limite);
         const total = await User.countDocuments(usuariosActivos);
 
         res.json({
@@ -232,10 +299,7 @@ export async function listarUsuarios(req: Request, res: Response) {
             total,
         });
     } catch (err) {
-        console.log(err);
-        res.status(HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
-        });
+        manejarErrorControlador(err, res);
     }
 }
 
@@ -280,16 +344,14 @@ export async function reenviarConfirmacion(req: Request, res: Response) {
 
         return res.json({ message: 'Correo de confirmación reenviado' });
     } catch (err) {
-        console.log(err);
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 
 export async function cambiarRolUsuario(req: AuthRequest, res: Response) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth) return;
 
         const { id } = req.params;
         const { rol } = req.body;
@@ -299,44 +361,34 @@ export async function cambiarRolUsuario(req: AuthRequest, res: Response) {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Rol inválido' });
         }
 
-        if (id === req.user._id.toString()) {
+        if (id === usuarioAuth._id.toString()) {
             return res.status(HttpStatus.BAD_REQUEST).json({ message: 'No puedes cambiar tu propio rol' });
         }
 
-        const usuario = await User.findByIdAndUpdate(id, { rol }, { new: true }).select('-contrasena_hash');
+        const usuario = await User.findByIdAndUpdate(id, { rol }, { new: true }).select(CAMPOS_USUARIO_SIN_CONTRASENA);
 
         if (!usuario) {
-            return res.status(HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
+            return res.status(HttpStatus.NOT_FOUND).json({ message: MSG_USUARIO_NO_ENCONTRADO });
         }
 
         return res.json({ message: 'Rol actualizado exitosamente', usuario });
     } catch (err) {
-        console.log(err);
-        if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 
 export async function agregarJuegoActivo(req: AuthRequest, res: Response) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth) return;
 
-        const { juegoId } = req.params;
-
-        if (typeof juegoId !== 'string') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id de juego inválido' });
-        }
+        const juegoId = obtenerJuegoIdValido(req, res);
+        if (!juegoId) return;
 
         const { busca_equipo } = req.body;
 
-        const usuario = await User.findById(req.user._id);
-        if (!usuario) {
-            return res.status(HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
-        }
+        const usuario = await buscarUsuarioPorId(usuarioAuth._id, res);
+        if (!usuario) return;
 
         usuario.juegos_activos = usuario.juegos_activos || [];
 
@@ -357,42 +409,24 @@ export async function agregarJuegoActivo(req: AuthRequest, res: Response) {
 
         await usuario.save();
 
-        try {
-            const idsJuegos = usuario.juegos_activos.map((j) => j.juego_id.toString());
-            await sincronizarJuegosUsuario(req.user._id.toString(), idsJuegos);
-        } catch (err) {
-            console.error(
-                `usuario ${req.user._id} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`,
-                err,
-            );
-        }
+        await sincronizarJuegosDelUsuarioEnDgraph(usuarioAuth._id.toString(), usuario.juegos_activos);
 
         return res.json({ message: 'Juego agregado a activos', juegos_activos: usuario.juegos_activos });
     } catch (err) {
-        console.log(err);
-        if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 
 export async function quitarJuegoActivo(req: AuthRequest, res: Response) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth) return;
 
-        const { juegoId } = req.params;
+        const juegoId = obtenerJuegoIdValido(req, res);
+        if (!juegoId) return;
 
-        if (typeof juegoId !== 'string') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id de juego inválido' });
-        }
-
-        const usuario = await User.findById(req.user._id);
-        if (!usuario) {
-            return res.status(HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
-        }
+        const usuario = await buscarUsuarioPorId(usuarioAuth._id, res);
+        if (!usuario) return;
 
         const teniaJuego = (usuario.juegos_activos || []).some((j) => j.juego_id.toString() === juegoId);
         if (!teniaJuego) {
@@ -408,42 +442,24 @@ export async function quitarJuegoActivo(req: AuthRequest, res: Response) {
 
         await usuario.save();
 
-        try {
-            const idsJuegos = usuario.juegos_activos.map((j) => j.juego_id.toString());
-            await sincronizarJuegosUsuario(req.user._id.toString(), idsJuegos);
-        } catch (err) {
-            console.error(
-                `usuario ${req.user._id} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`,
-                err,
-            );
-        }
+        await sincronizarJuegosDelUsuarioEnDgraph(usuarioAuth._id.toString(), usuario.juegos_activos);
 
         return res.json({ message: 'Juego movido a pasados' });
     } catch (err) {
-        console.log(err);
-        if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 
 export async function agregarJuegoPasado(req: AuthRequest, res: Response) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth) return;
 
-        const { juegoId } = req.params;
+        const juegoId = obtenerJuegoIdValido(req, res);
+        if (!juegoId) return;
 
-        if (typeof juegoId !== 'string') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id de juego inválido' });
-        }
-
-        const usuario = await User.findById(req.user._id);
-        if (!usuario) {
-            return res.status(HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
-        }
+        const usuario = await buscarUsuarioPorId(usuarioAuth._id, res);
+        if (!usuario) return;
 
         // si estaba activo, lo quitamos de ahí primero
         usuario.juegos_activos = (usuario.juegos_activos || []).filter((j) => j.juego_id.toString() !== juegoId);
@@ -455,52 +471,30 @@ export async function agregarJuegoPasado(req: AuthRequest, res: Response) {
 
         await usuario.save();
 
-        try {
-            const idsJuegos = usuario.juegos_activos.map((j) => j.juego_id.toString());
-            await sincronizarJuegosUsuario(req.user._id.toString(), idsJuegos);
-        } catch (err) {
-            console.error(
-                `usuario ${req.user._id} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`,
-                err,
-            );
-        }
+        await sincronizarJuegosDelUsuarioEnDgraph(usuarioAuth._id.toString(), usuario.juegos_activos);
 
         return res.json({ message: 'Juego agregado a pasados' });
     } catch (err) {
-        console.log(err);
-        if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 
 export async function quitarJuegoPasado(req: AuthRequest, res: Response) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth) return;
 
-        const { juegoId } = req.params;
+        const juegoId = obtenerJuegoIdValido(req, res);
+        if (!juegoId) return;
 
-        if (typeof juegoId !== 'string') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id de juego inválido' });
-        }
-
-        const usuario = await User.findById(req.user._id);
-        if (!usuario) {
-            return res.status(HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
-        }
+        const usuario = await buscarUsuarioPorId(usuarioAuth._id, res);
+        if (!usuario) return;
 
         usuario.juegos_pasados = (usuario.juegos_pasados || []).filter((id) => id.toString() !== juegoId);
         await usuario.save();
 
         return res.json({ message: 'Juego quitado de pasados' });
     } catch (err) {
-        console.log(err);
-        if ((err as Error).name === 'CastError') {
-            return res.status(HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }

@@ -5,6 +5,23 @@ import { Juego } from '../database/mongo/models/juego.model';
 import { IJuego } from '../types/juego.types';
 import { crearJuegoEnDgraph, actualizarJuegoEnDgraph } from '../database/dgraph/queries/juego.queries';
 
+// agregamos constantes para resolver warnings con eslint
+const MSG_ERROR_SERVIDOR = 'Error del servidor';
+const MSG_JUEGO_NO_ENCONTRADO = 'No se encontro el juego';
+const MSG_ID_INVALIDO = 'Id Invalido';
+
+/**
+ * Sincroniza el título del juego con Dgraph.
+ * Si falla, registra el error sin impedir la respuesta de éxito.
+ */
+async function sincronizarTituloJuegoEnDgraph(id: string, titulo: string) {
+    try {
+        await actualizarJuegoEnDgraph(id, { nombre_juego: titulo });
+    } catch (err) {
+        console.error(`Juego ${id} actualizado en Mongo pero FALLÓ la sincronización con Dgraph:`, err);
+    }
+}
+
 export async function previsualizarJuego(req: Request, res: Response) {
     try {
         const { nombre } = req.query;
@@ -94,7 +111,7 @@ export async function crearJuego(req: Request, res: Response) {
     } catch (err) {
         console.log(err);
         res.status(HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
+            message: MSG_ERROR_SERVIDOR,
         });
     }
 }
@@ -116,7 +133,7 @@ export async function listarJuegos(req: Request, res: Response) {
     } catch (err) {
         console.log(err);
         res.status(HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
+            message: MSG_ERROR_SERVIDOR,
         });
     }
 }
@@ -127,7 +144,7 @@ export async function obtenerJuego(req: Request, res: Response) {
         const resultado = await Juego.findById(id);
         if (!resultado || !resultado.activo) {
             return res.status(HttpStatus.NOT_FOUND).json({
-                message: 'No se encontro el juego',
+                message: MSG_JUEGO_NO_ENCONTRADO,
             });
         }
 
@@ -136,11 +153,11 @@ export async function obtenerJuego(req: Request, res: Response) {
         console.log(err);
         if ((err as Error).name == 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({
-                message: 'Id Invalido',
+                message: MSG_ID_INVALIDO,
             });
         }
         return res.status(HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
+            message: MSG_ERROR_SERVIDOR,
         });
     }
 }
@@ -165,17 +182,13 @@ export async function actualizarJuego(req: Request, res: Response) {
         const juegoActualizado = await Juego.findByIdAndUpdate(id, juegoUpdate, { new: true });
         if (!juegoActualizado) {
             return res.status(HttpStatus.NOT_FOUND).json({
-                message: 'No se encontro el juego',
+                message: MSG_JUEGO_NO_ENCONTRADO,
             });
         }
 
         // Actualizar juego en dgraph ---------------------------------------------------------------------------------------------
         if (juegoUpdate.titulo !== undefined) {
-            try {
-                await actualizarJuegoEnDgraph(id as string, { nombre_juego: juegoUpdate.titulo });
-            } catch (err) {
-                console.error(`Juego ${id} actualizado en Mongo pero FALLÓ la sincronización con Dgraph:`, err);
-            }
+            await sincronizarTituloJuegoEnDgraph(id as string, juegoUpdate.titulo);
         }
         // ------------------------------------------------------------------------------------------------------------------------
 
@@ -184,11 +197,11 @@ export async function actualizarJuego(req: Request, res: Response) {
         console.log(err);
         if ((err as Error).name == 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({
-                message: 'Id Invalido',
+                message: MSG_ID_INVALIDO,
             });
         }
         return res.status(HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
+            message: MSG_ERROR_SERVIDOR,
         });
     }
 }
@@ -201,7 +214,7 @@ export async function eliminarJuego(req: Request, res: Response) {
 
         if (!juego) {
             return res.status(HttpStatus.NOT_FOUND).json({
-                message: 'No se encontro el juego',
+                message: MSG_JUEGO_NO_ENCONTRADO,
             });
         }
 
@@ -219,11 +232,11 @@ export async function eliminarJuego(req: Request, res: Response) {
         console.log(err);
         if ((err as Error).name == 'CastError') {
             return res.status(HttpStatus.BAD_REQUEST).json({
-                message: 'Id Invalido',
+                message: MSG_ID_INVALIDO,
             });
         }
         return res.status(HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
+            message: MSG_ERROR_SERVIDOR,
         });
     }
 }
