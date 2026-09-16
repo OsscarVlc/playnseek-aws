@@ -1,0 +1,24 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const pages_Controller_1 = require("../controllers/pages.Controller");
+const auth_vistas_middleware_1 = require("../middlewares/auth-vistas.middleware");
+const router = express_1.default.Router();
+router.get('/', auth_vistas_middleware_1.authOpcionalVistas, pages_Controller_1.mostrarIndex);
+router.get('/login', pages_Controller_1.mostrarLogin);
+router.get('/register', pages_Controller_1.mostrarRegister);
+router.get('/perfil', auth_vistas_middleware_1.authMiddlewareVistas, pages_Controller_1.mostrarPerfil);
+router.get('/juegos', pages_Controller_1.mostrarJuegos);
+router.get('/juegos/:id', auth_vistas_middleware_1.authOpcionalVistas, pages_Controller_1.mostrarDetalleJuego);
+router.get('/grupos', pages_Controller_1.mostrarGrupos);
+router.get('/grupos/:id', auth_vistas_middleware_1.authOpcionalVistas, pages_Controller_1.mostrarDetalleGrupo);
+router.get('/logout', pages_Controller_1.logout);
+router.get('/match', auth_vistas_middleware_1.authMiddlewareVistas, pages_Controller_1.mostrarMatch);
+router.get('/confirmar/:token', pages_Controller_1.mostrarConfirmacion);
+router.get('/chat/:id', auth_vistas_middleware_1.authMiddlewareVistas, pages_Controller_1.mostrarChatPrivado);
+router.get('/admin/usuarios', auth_vistas_middleware_1.authMiddlewareVistas, auth_vistas_middleware_1.requireAdminVistas, pages_Controller_1.mostrarAdminUsuarios);
+router.get('/moderacion/reportes', auth_vistas_middleware_1.authMiddlewareVistas, auth_vistas_middleware_1.requireModeradorVistas, pages_Controller_1.mostrarModeracionReportes);
+exports.default = router;
