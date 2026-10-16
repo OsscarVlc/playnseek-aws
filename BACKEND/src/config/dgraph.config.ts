@@ -4,7 +4,7 @@ import * as fs from 'fs'; // leeremos el archivo del esquema
 import * as path from 'path'; // construiremos rutas de archivos
 
 // Direccion de nuestro servidor, usamos el puerto de gRPC
-const DGRAPH_ADDRESS = 'localhost:9080';
+const DGRAPH_ADDRESS = process.env.DGRAPH_ADDRESS || 'localhost:9080';
 
 // CREAMOS CONEXION ---------------------------------------------------
 
