@@ -10,3 +10,7 @@ export SUBNET_ID="subnet-0d1fe38a2d145bc82"
 
 # Perfil existente que contiene LabRole
 export INSTANCE_PROFILE="LabInstanceProfile"
+
+export AMI_ID="ami-0567589d25e06853e"
+export INSTANCE_TYPE="t3.medium"
+export SECURITY_GROUP_ID="sg-0943075a74ec7065a"
