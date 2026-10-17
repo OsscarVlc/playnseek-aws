@@ -14,6 +14,8 @@ exports.reenviarConfirmacion = reenviarConfirmacion;
 exports.cambiarRolUsuario = cambiarRolUsuario;
 exports.agregarJuegoActivo = agregarJuegoActivo;
 exports.quitarJuegoActivo = quitarJuegoActivo;
+exports.agregarJuegoPasado = agregarJuegoPasado;
+exports.quitarJuegoPasado = quitarJuegoPasado;
 const user_model_1 = require("../database/mongo/models/user.model");
 const https_status_1 = require("../types/https-status");
 const bcrypt_1 = __importDefault(require("bcrypt"));
@@ -25,6 +27,73 @@ const cloudinary_service_1 = require("../services/cloudinary.service");
 const confirmacion_service_1 = require("../services/confirmacion.service");
 const mongoose_1 = require("mongoose");
 const juego_queries_1 = require("../database/dgraph/queries/juego.queries");
+// ---------- Constantes de mensajes (evita strings repetidos) ----------
+const MSG_NO_AUTENTICADO = 'No autenticado';
+const MSG_USUARIO_NO_ENCONTRADO = 'Usuario no encontrado';
+const MSG_ID_INVALIDO = 'Id Invalido';
+const MSG_ERROR_SERVIDOR = 'Error del servidor';
+const MSG_JUEGO_ID_INVALIDO = 'Id de juego inválido';
+const CAMPOS_USUARIO_SIN_CONTRASENA = '-contrasena_hash';
+// ---------- Funciones auxiliares (reducen complejidad y duplicación) ----------
+/**
+ * Maneja los errores de forma centralizada: distingue CastError (id con formato
+ * inválido) de cualquier otro error inesperado del servidor.
+ */
+function manejarErrorControlador(err, res) {
+    console.log(err);
+    if (err.name === 'CastError') {
+        return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
+    }
+    return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
+}
+/**
+ * Verifica que el request tenga un usuario autenticado válido (no string, no undefined).
+ * Si no lo tiene, responde 401 y devuelve null; si lo tiene, lo devuelve.
+ */
+function obtenerUsuarioAutenticado(req, res) {
+    if (typeof req.user === 'string' || !req.user) {
+        res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
+        return null;
+    }
+    return req.user;
+}
+/**
+ * Valida que el parámetro de ruta juegoId venga como string.
+ * Si no, responde 400 y devuelve null.
+ */
+function obtenerJuegoIdValido(req, res) {
+    const { juegoId } = req.params;
+    if (typeof juegoId !== 'string') {
+        res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: MSG_JUEGO_ID_INVALIDO });
+        return null;
+    }
+    return juegoId;
+}
+/**
+ * Busca un usuario por su _id de Mongo. Si no existe, responde 404 y devuelve null.
+ */
+async function buscarUsuarioPorId(id, res) {
+    const usuario = await user_model_1.User.findById(id);
+    if (!usuario) {
+        res.status(https_status_1.HttpStatus.NOT_FOUND).json({ message: MSG_USUARIO_NO_ENCONTRADO });
+        return null;
+    }
+    return usuario;
+}
+/**
+ * Sincroniza la lista actual de juegos_activos del usuario con Dgraph.
+ * No bloquea el flujo si falla, solo lo deja registrado en consola.
+ */
+async function sincronizarJuegosDelUsuarioEnDgraph(usuarioId, juegosActivos) {
+    try {
+        const idsJuegos = juegosActivos.map((j) => j.juego_id.toString());
+        await (0, juego_queries_1.sincronizarJuegosUsuario)(usuarioId, idsJuegos);
+    }
+    catch (err) {
+        console.error(`usuario ${usuarioId} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`, err);
+    }
+}
+// ---------- Controllers ----------
 async function registerUser(req, res) {
     try {
         const { name, email, password } = req.body;
@@ -49,7 +118,7 @@ async function registerUser(req, res) {
             const doc = await newUser.save();
             console.log('Usuario creado: ' + doc._id);
             const tokenConfirmacion = (0, jwt_1.generarTokenConfirmacion)(doc._id.toString());
-            const urlConfirmacion = `http://localhost:3000/confirmar/${tokenConfirmacion}`;
+            const urlConfirmacion = `${process.env.APP_URL}/confirmar/${tokenConfirmacion}`;
             try {
                 await (0, email_service_1.enviarCorreoConfirmacion)(doc.correo, doc.nombre, urlConfirmacion);
             }
@@ -77,10 +146,7 @@ async function registerUser(req, res) {
         }
     }
     catch (err) {
-        console.log(err);
-        res.status(https_status_1.HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
-        });
+        manejarErrorControlador(err, res);
     }
 }
 async function loginUser(req, res) {
@@ -96,7 +162,9 @@ async function loginUser(req, res) {
             return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'Credenciales inválidas' });
         }
         if (!user.correo_confirmado) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'Debes confirmar tu correo antes de iniciar sesión' });
+            return res
+                .status(https_status_1.HttpStatus.UNAUTHORIZED)
+                .json({ message: 'Debes confirmar tu correo antes de iniciar sesión' });
         }
         // Generar token
         const token = (0, jwt_1.generateToken)({
@@ -112,23 +180,23 @@ async function loginUser(req, res) {
     }
 }
 function getMe(req, res) {
-    if (typeof req.user === 'string' || !req.user) {
-        return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-    }
+    const usuario = obtenerUsuarioAutenticado(req, res);
+    if (!usuario)
+        return;
     res.json({
         message: 'Usuario autenticado',
         user: {
-            id: req.user._id,
-            correo: req.user.correo,
-            rol: req.user.rol,
+            id: usuario._id,
+            correo: usuario.correo,
+            rol: usuario.rol,
         },
     });
 }
 async function actualizarUsuario(req, res) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth)
+            return;
         const { rol, password, correo_confirmado, plataformas, ...resto } = req.body;
         // sacar el rol y password del objeto de actualizacion para hacer validaciones
         // todo lo demas se agrupa dentro de resto como un objeto
@@ -136,7 +204,9 @@ async function actualizarUsuario(req, res) {
             return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'No se puede modificar el rol' });
         }
         if (correo_confirmado !== undefined) {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'No se puede modificar correo_confirmado desde aquí' });
+            return res
+                .status(https_status_1.HttpStatus.BAD_REQUEST)
+                .json({ message: 'No se puede modificar correo_confirmado desde aquí' });
         }
         const userUpdate = { ...resto };
         // se utiliza spread para expandir la variable resto dentro del objeto de userUpdate
@@ -158,34 +228,29 @@ async function actualizarUsuario(req, res) {
         if (req.file) {
             userUpdate.foto_perfil = await (0, cloudinary_service_1.subirImagenACloudinary)(req.file.buffer);
         }
-        const usuarioActualizado = await user_model_1.User.findByIdAndUpdate(req.user._id, userUpdate, { new: true }).select('-contrasena_hash');
-        // select('-contrasena_hash') es para decirle a mongoose que traiga todo el documento
+        const usuarioActualizado = await user_model_1.User.findByIdAndUpdate(usuarioAuth._id, userUpdate, { new: true }).select(CAMPOS_USUARIO_SIN_CONTRASENA);
+        // select(CAMPOS_USUARIO_SIN_CONTRASENA) es para decirle a mongoose que traiga todo el documento
         // sin contar ese campo y evitar filtrar la contrasena
         if (!usuarioActualizado) {
-            return res.status(https_status_1.HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
+            return res.status(https_status_1.HttpStatus.NOT_FOUND).json({ message: MSG_USUARIO_NO_ENCONTRADO });
         }
         // toda la sincronizacion con dgraph (datos basicos, idiomas, plataformas) vive
         // en dgraphSync.service.ts, aqui solo se llama una vez con lo que cambio
-        await (0, dgraphSync_service_1.sincronizarUsuarioConDgraph)(req.user._id.toString(), userUpdate);
+        await (0, dgraphSync_service_1.sincronizarUsuarioConDgraph)(usuarioAuth._id.toString(), userUpdate);
         return res.json(usuarioActualizado);
     }
     catch (err) {
-        console.log(err);
-        if (err.name === 'CastError') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 async function eliminarUsuario(req, res) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
-        const usuarioEliminado = await user_model_1.User.findById(req.user._id);
-        if (!usuarioEliminado) {
-            return res.status(https_status_1.HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
-        }
+        const usuario = obtenerUsuarioAutenticado(req, res);
+        if (!usuario)
+            return;
+        const usuarioEliminado = await buscarUsuarioPorId(usuario._id, res);
+        if (!usuarioEliminado)
+            return;
         //agregar sufijo de eliminacion
         usuarioEliminado.correo += `_eliminado_${Date.now()}`;
         usuarioEliminado.isActive = false;
@@ -193,8 +258,7 @@ async function eliminarUsuario(req, res) {
         return res.json({ message: 'Usuario eliminado exitosamente' });
     }
     catch (err) {
-        console.log(err);
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 async function listarUsuarios(req, res) {
@@ -203,7 +267,7 @@ async function listarUsuarios(req, res) {
         const limite = Number(req.query.limite) || 10;
         const skip = (pagina - 1) * limite;
         const usuariosActivos = req.query.incluirInactivos === 'true' ? {} : { isActive: true };
-        const usuarios = await user_model_1.User.find(usuariosActivos).select('-contrasena_hash').skip(skip).limit(limite);
+        const usuarios = await user_model_1.User.find(usuariosActivos).select(CAMPOS_USUARIO_SIN_CONTRASENA).skip(skip).limit(limite);
         const total = await user_model_1.User.countDocuments(usuariosActivos);
         res.json({
             data: usuarios,
@@ -213,10 +277,7 @@ async function listarUsuarios(req, res) {
         });
     }
     catch (err) {
-        console.log(err);
-        res.status(https_status_1.HttpStatus.SERVER_ERROR).json({
-            message: 'Error del servidor',
-        });
+        manejarErrorControlador(err, res);
     }
 }
 async function confirmarCuenta(req, res) {
@@ -247,57 +308,50 @@ async function reenviarConfirmacion(req, res) {
             return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Esta cuenta ya está confirmada' });
         }
         const tokenConfirmacion = (0, jwt_1.generarTokenConfirmacion)(usuario._id.toString());
-        const urlConfirmacion = `http://localhost:3000/confirmar/${tokenConfirmacion}`;
+        const urlConfirmacion = `${process.env.APP_URL}/confirmar/${tokenConfirmacion}`;
         await (0, email_service_1.enviarCorreoConfirmacion)(usuario.correo, usuario.nombre, urlConfirmacion);
         return res.json({ message: 'Correo de confirmación reenviado' });
     }
     catch (err) {
-        console.log(err);
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 async function cambiarRolUsuario(req, res) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth)
+            return;
         const { id } = req.params;
         const { rol } = req.body;
         const rolesValidos = ['administrador', 'usuario', 'moderador'];
         if (!rol || !rolesValidos.includes(rol)) {
             return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Rol inválido' });
         }
-        if (id === req.user._id.toString()) {
+        if (id === usuarioAuth._id.toString()) {
             return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'No puedes cambiar tu propio rol' });
         }
-        const usuario = await user_model_1.User.findByIdAndUpdate(id, { rol }, { new: true }).select('-contrasena_hash');
+        const usuario = await user_model_1.User.findByIdAndUpdate(id, { rol }, { new: true }).select(CAMPOS_USUARIO_SIN_CONTRASENA);
         if (!usuario) {
-            return res.status(https_status_1.HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
+            return res.status(https_status_1.HttpStatus.NOT_FOUND).json({ message: MSG_USUARIO_NO_ENCONTRADO });
         }
         return res.json({ message: 'Rol actualizado exitosamente', usuario });
     }
     catch (err) {
-        console.log(err);
-        if (err.name === 'CastError') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 async function agregarJuegoActivo(req, res) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
-        const { juegoId } = req.params;
-        if (typeof juegoId !== 'string') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id de juego inválido' });
-        }
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth)
+            return;
+        const juegoId = obtenerJuegoIdValido(req, res);
+        if (!juegoId)
+            return;
         const { busca_equipo } = req.body;
-        const usuario = await user_model_1.User.findById(req.user._id);
-        if (!usuario) {
-            return res.status(https_status_1.HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
-        }
+        const usuario = await buscarUsuarioPorId(usuarioAuth._id, res);
+        if (!usuario)
+            return;
         usuario.juegos_activos = usuario.juegos_activos || [];
         const existente = usuario.juegos_activos.find((j) => j.juego_id.toString() === juegoId);
         if (existente) {
@@ -307,42 +361,30 @@ async function agregarJuegoActivo(req, res) {
             usuario.juegos_activos.push({
                 juego_id: new mongoose_1.Types.ObjectId(juegoId),
                 busca_equipo: !!busca_equipo,
-                desde: new Date()
+                desde: new Date(),
             });
         }
         // si estaba en pasados, lo quitamos (lo volvió a jugar)
         usuario.juegos_pasados = (usuario.juegos_pasados || []).filter((id) => id.toString() !== juegoId);
         await usuario.save();
-        try {
-            const idsJuegos = usuario.juegos_activos.map((j) => j.juego_id.toString());
-            await (0, juego_queries_1.sincronizarJuegosUsuario)(req.user._id.toString(), idsJuegos);
-        }
-        catch (err) {
-            console.error(`usuario ${req.user._id} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`, err);
-        }
+        await sincronizarJuegosDelUsuarioEnDgraph(usuarioAuth._id.toString(), usuario.juegos_activos);
         return res.json({ message: 'Juego agregado a activos', juegos_activos: usuario.juegos_activos });
     }
     catch (err) {
-        console.log(err);
-        if (err.name === 'CastError') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        manejarErrorControlador(err, res);
     }
 }
 async function quitarJuegoActivo(req, res) {
     try {
-        if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
-        }
-        const { juegoId } = req.params;
-        if (typeof juegoId !== 'string') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id de juego inválido' });
-        }
-        const usuario = await user_model_1.User.findById(req.user._id);
-        if (!usuario) {
-            return res.status(https_status_1.HttpStatus.NOT_FOUND).json({ message: 'Usuario no encontrado' });
-        }
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth)
+            return;
+        const juegoId = obtenerJuegoIdValido(req, res);
+        if (!juegoId)
+            return;
+        const usuario = await buscarUsuarioPorId(usuarioAuth._id, res);
+        if (!usuario)
+            return;
         const teniaJuego = (usuario.juegos_activos || []).some((j) => j.juego_id.toString() === juegoId);
         if (!teniaJuego) {
             return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'No tienes este juego marcado como activo' });
@@ -353,20 +395,54 @@ async function quitarJuegoActivo(req, res) {
             usuario.juegos_pasados.push(new mongoose_1.Types.ObjectId(juegoId));
         }
         await usuario.save();
-        try {
-            const idsJuegos = usuario.juegos_activos.map((j) => j.juego_id.toString());
-            await (0, juego_queries_1.sincronizarJuegosUsuario)(req.user._id.toString(), idsJuegos);
-        }
-        catch (err) {
-            console.error(`usuario ${req.user._id} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`, err);
-        }
+        await sincronizarJuegosDelUsuarioEnDgraph(usuarioAuth._id.toString(), usuario.juegos_activos);
         return res.json({ message: 'Juego movido a pasados' });
     }
     catch (err) {
-        console.log(err);
-        if (err.name === 'CastError') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+        manejarErrorControlador(err, res);
+    }
+}
+async function agregarJuegoPasado(req, res) {
+    try {
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth)
+            return;
+        const juegoId = obtenerJuegoIdValido(req, res);
+        if (!juegoId)
+            return;
+        const usuario = await buscarUsuarioPorId(usuarioAuth._id, res);
+        if (!usuario)
+            return;
+        // si estaba activo, lo quitamos de ahí primero
+        usuario.juegos_activos = (usuario.juegos_activos || []).filter((j) => j.juego_id.toString() !== juegoId);
+        usuario.juegos_pasados = usuario.juegos_pasados || [];
+        if (!usuario.juegos_pasados.some((id) => id.toString() === juegoId)) {
+            usuario.juegos_pasados.push(new mongoose_1.Types.ObjectId(juegoId));
         }
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        await usuario.save();
+        await sincronizarJuegosDelUsuarioEnDgraph(usuarioAuth._id.toString(), usuario.juegos_activos);
+        return res.json({ message: 'Juego agregado a pasados' });
+    }
+    catch (err) {
+        manejarErrorControlador(err, res);
+    }
+}
+async function quitarJuegoPasado(req, res) {
+    try {
+        const usuarioAuth = obtenerUsuarioAutenticado(req, res);
+        if (!usuarioAuth)
+            return;
+        const juegoId = obtenerJuegoIdValido(req, res);
+        if (!juegoId)
+            return;
+        const usuario = await buscarUsuarioPorId(usuarioAuth._id, res);
+        if (!usuario)
+            return;
+        usuario.juegos_pasados = (usuario.juegos_pasados || []).filter((id) => id.toString() !== juegoId);
+        await usuario.save();
+        return res.json({ message: 'Juego quitado de pasados' });
+    }
+    catch (err) {
+        manejarErrorControlador(err, res);
     }
 }

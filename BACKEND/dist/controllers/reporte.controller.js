@@ -6,10 +6,13 @@ exports.obtenerReporte = obtenerReporte;
 exports.actualizarReporte = actualizarReporte;
 const https_status_1 = require("../types/https-status");
 const reporte_model_1 = require("../database/mongo/models/reporte.model");
+const MSG_NO_AUTENTICADO = 'No autenticado';
+const MSG_ID_INVALIDO = 'Id Invalido';
+const MSG_ERROR_SERVIDOR = 'Error del servidor';
 async function crearReporte(req, res) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
         const { reportado_id, motivo, descripcion, grupo_id, post_id, comentario_id } = req.body;
         if (!reportado_id) {
@@ -40,15 +43,15 @@ async function crearReporte(req, res) {
     catch (err) {
         console.log(err);
         if (err.name === 'CastError') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
-        res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 async function listarReportes(req, res) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
         const pagina = Number(req.query.pagina) || 1;
         const limite = Number(req.query.limite) || 10;
@@ -57,7 +60,9 @@ async function listarReportes(req, res) {
         if (req.query.estado) {
             filtro.estado = req.query.estado;
         }
-        const reportes = await reporte_model_1.Reporte.find(filtro).skip(skip).limit(limite)
+        const reportes = await reporte_model_1.Reporte.find(filtro)
+            .skip(skip)
+            .limit(limite)
             .populate('remitente_id', 'nombre')
             .populate('reportado_id', 'nombre');
         const total = await reporte_model_1.Reporte.countDocuments(filtro);
@@ -70,13 +75,13 @@ async function listarReportes(req, res) {
     }
     catch (err) {
         console.log(err);
-        res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 async function obtenerReporte(req, res) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
         const { id } = req.params;
         const reporte = await reporte_model_1.Reporte.findById(id);
@@ -88,15 +93,15 @@ async function obtenerReporte(req, res) {
     catch (err) {
         console.log(err);
         if (err.name === 'CastError') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 async function actualizarReporte(req, res) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
         const { id } = req.params;
         const { estado } = req.body;
@@ -114,8 +119,8 @@ async function actualizarReporte(req, res) {
     catch (err) {
         console.log(err);
         if (err.name === 'CastError') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
+            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
         }
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: 'Error del servidor' });
+        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }

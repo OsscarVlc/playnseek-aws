@@ -97,7 +97,8 @@ function requireAdminVistas(req, res, next) {
     next();
 }
 function requireModeradorVistas(req, res, next) {
-    if (typeof req.user === 'string' || !req.user ||
+    if (typeof req.user === 'string' ||
+        !req.user ||
         (req.user.rol !== 'administrador' && req.user.rol !== 'moderador')) {
         return res.redirect('/');
     }

@@ -13,7 +13,8 @@ function configurarChatSocket(io) {
             if (!grupo || !grupo.activo) {
                 return socket.emit('error_chat', 'Grupo no encontrado');
             }
-            const esIntegrante = (grupo.integrantes?.some((id) => id.toString() === socket.usuarioId) ?? false) || socket.rol === 'administrador';
+            const esIntegrante = (grupo.integrantes?.some((id) => id.toString() === socket.usuarioId) ?? false) ||
+                socket.rol === 'administrador';
             if (!esIntegrante) {
                 return socket.emit('error_chat', 'No eres integrante de este grupo');
             }
@@ -29,7 +30,7 @@ function configurarChatSocket(io) {
                 usuario_id: m.usuario_id._id,
                 nombreUsuario: m.usuario_id.nombre,
                 contenido: m.contenido,
-                fecha: m.fecha
+                fecha: m.fecha,
             }));
             socket.emit('historial', mensajesFormateados);
         });
@@ -41,7 +42,8 @@ function configurarChatSocket(io) {
             if (!grupo || !grupo.activo) {
                 return socket.emit('error_chat', 'Grupo no encontrado');
             }
-            const esIntegrante = (grupo.integrantes?.some((id) => id.toString() === socket.usuarioId) ?? false) || socket.rol === 'administrador';
+            const esIntegrante = (grupo.integrantes?.some((id) => id.toString() === socket.usuarioId) ?? false) ||
+                socket.rol === 'administrador';
             if (!esIntegrante) {
                 return socket.emit('error_chat', 'No eres integrante de este grupo');
             }
@@ -49,7 +51,7 @@ function configurarChatSocket(io) {
                 grupo_id: grupoId,
                 usuario_id: socket.usuarioId,
                 contenido,
-                fecha: new Date()
+                fecha: new Date(),
             });
             const doc = await nuevoMensaje.save();
             io.to(grupoId).emit('mensaje_recibido', {
@@ -57,7 +59,7 @@ function configurarChatSocket(io) {
                 usuario_id: doc.usuario_id,
                 nombreUsuario: socket.nombreUsuario,
                 contenido: doc.contenido,
-                fecha: doc.fecha
+                fecha: doc.fecha,
             });
         });
         socket.on('disconnect', () => {

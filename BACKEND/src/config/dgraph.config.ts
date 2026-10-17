@@ -4,7 +4,14 @@ import * as fs from 'fs'; // leeremos el archivo del esquema
 import * as path from 'path'; // construiremos rutas de archivos
 
 // Direccion de nuestro servidor, usamos el puerto de gRPC
-const DGRAPH_ADDRESS = 'localhost:9080';
+//Cambio para lambda
+const DGRAPH_ADDRESS = process.env.DGRAPH_ADDRESS || 'localhost:9080';
+
+// habilitamos TLS segun el entorno
+const credencialesDgraph =
+    process.env.DGRAPH_TLS === 'true'
+        ? grpc.credentials.createSsl()
+        : grpc.credentials.createInsecure();
 
 // CREAMOS CONEXION ---------------------------------------------------
 
@@ -12,7 +19,7 @@ const DGRAPH_ADDRESS = 'localhost:9080';
 const clientStub = new dgraph.DgraphClientStub(
     // creamos la conexion principal
     DGRAPH_ADDRESS, // le pasamos la direccion
-    grpc.credentials.createInsecure(), // permite conectarse sin encriptacion TLS. *En caso real es recomendable encriptarla*
+    credencialesDgraph, // usamos TLS cuando está habilitado en la configuración
 );
 
 // Cliente de Dgraph que usaremos para queries/mutaciones

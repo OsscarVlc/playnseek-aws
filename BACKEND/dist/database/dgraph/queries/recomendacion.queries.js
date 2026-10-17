@@ -3,10 +3,33 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.obtenerRecomendacionesDgraph = obtenerRecomendacionesDgraph;
 const dgraph_config_1 = require("../../../config/dgraph.config");
 // Buscamos candidatos de match para un usuario, en Dgraph, respetando
-// la jerarquía de prioridad: 
-// 1. Idioma en común, 
+// la jerarquía de prioridad:
+// 1. Idioma en común,
 // 2. Plataforma en común,
 // 3. Juegos en común. Excluye al propio usuario y a quienes ya son match.
+/**
+ * Combina los niveles de candidatos respetando su prioridad,
+ * sin duplicar usuarios y aplicando el límite indicado.
+ */
+function combinarCandidatosPorPrioridad(niveles, limite) {
+    // Combinamos los 3 niveles respetando el orden de prioridad,
+    // sin repetir el mismo usuario si aparece en más de un nivel
+    const vistos = new Set();
+    const resultado = [];
+    for (const nivel of niveles) {
+        for (const candidato of nivel) {
+            if (resultado.length >= limite)
+                break;
+            if (!vistos.has(candidato.mongo_id)) {
+                vistos.add(candidato.mongo_id);
+                resultado.push({ mongo_id: candidato.mongo_id, nombre: candidato.nombre });
+            }
+        }
+        if (resultado.length >= limite)
+            break;
+    }
+    return resultado;
+}
 async function obtenerRecomendacionesDgraph(mongoId, limite = 20) {
     const txn = dgraph_config_1.dgraphClient.newTxn();
     try {
@@ -41,28 +64,8 @@ async function obtenerRecomendacionesDgraph(mongoId, limite = 20) {
     `;
         const res = await txn.queryWithVars(query, { $mongoId: mongoId });
         const data = res.getJson();
-        // Combinamos los 3 niveles respetando el orden de prioridad,
-        // sin repetir el mismo usuario si aparece en más de un nivel
-        const vistos = new Set();
-        const resultado = [];
-        const niveles = [
-            data.porIdioma || [],
-            data.porPlataforma || [],
-            data.porJuego || [],
-        ];
-        for (const nivel of niveles) {
-            for (const candidato of nivel) {
-                if (resultado.length >= limite)
-                    break;
-                if (!vistos.has(candidato.mongo_id)) {
-                    vistos.add(candidato.mongo_id);
-                    resultado.push({ mongo_id: candidato.mongo_id, nombre: candidato.nombre });
-                }
-            }
-            if (resultado.length >= limite)
-                break;
-        }
-        return resultado;
+        const niveles = [data.porIdioma || [], data.porPlataforma || [], data.porJuego || []];
+        return combinarCandidatosPorPrioridad(niveles, limite);
     }
     catch (err) {
         console.error(`Error obteniendo recomendaciones de Dgraph para ${mongoId}:`, err);

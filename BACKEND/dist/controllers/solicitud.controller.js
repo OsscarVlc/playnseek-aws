@@ -9,10 +9,29 @@ const https_status_1 = require("../types/https-status");
 const solicitud_model_1 = require("../database/mongo/models/solicitud.model");
 const solicitud_types_1 = require("../types/solicitud.types");
 const match_queries_1 = require("../database/dgraph/queries/match.queries");
+const MSG_NO_AUTENTICADO = 'No autenticado';
+const MSG_ID_INVALIDO = 'Id Invalido';
+const MSG_ERROR_SERVIDOR = 'Error del servidor';
+/**
+ * Maneja los errores de las operaciones que distinguen CastError.
+ */
+function manejarErrorSolicitud(err, res) {
+    console.log(err);
+    if (err.name === 'CastError') {
+        return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
+    }
+    return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
+}
+/**
+ * Obtiene el estado correspondiente a una respuesta previamente validada.
+ */
+function obtenerEstadoRespuesta(respuesta) {
+    return respuesta === 'aceptar' ? solicitud_types_1.EstadoSolicitud.ACEPTADA : solicitud_types_1.EstadoSolicitud.RECHAZADA;
+}
 async function enviarSolicitud(req, res) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
         const deUsuario = req.user._id.toString();
         const { aUsuario } = req.body;
@@ -26,7 +45,7 @@ async function enviarSolicitud(req, res) {
         const solicitudExistente = await solicitud_model_1.Solicitud.findOne({
             de_usuario: deUsuario,
             a_usuario: aUsuario,
-            estado: solicitud_types_1.EstadoSolicitud.PENDIENTE
+            estado: solicitud_types_1.EstadoSolicitud.PENDIENTE,
         });
         if (solicitudExistente) {
             return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Ya le enviaste una solicitud a este usuario' });
@@ -35,7 +54,7 @@ async function enviarSolicitud(req, res) {
         const solicitudInversa = await solicitud_model_1.Solicitud.findOne({
             de_usuario: aUsuario,
             a_usuario: deUsuario,
-            estado: solicitud_types_1.EstadoSolicitud.PENDIENTE
+            estado: solicitud_types_1.EstadoSolicitud.PENDIENTE,
         });
         if (solicitudInversa) {
             solicitudInversa.estado = solicitud_types_1.EstadoSolicitud.ACEPTADA;
@@ -59,37 +78,33 @@ async function enviarSolicitud(req, res) {
         return res.status(https_status_1.HttpStatus.CREATED).json({ message: 'Solicitud enviada exitosamente', solicitud: doc });
     }
     catch (err) {
-        console.log(err);
-        if (err.name === 'CastError') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return manejarErrorSolicitud(err, res);
     }
 }
 async function listarSolicitudesRecibidas(req, res) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
         const solicitudes = await solicitud_model_1.Solicitud.find({
             a_usuario: req.user._id,
-            estado: solicitud_types_1.EstadoSolicitud.PENDIENTE
+            estado: solicitud_types_1.EstadoSolicitud.PENDIENTE,
         }).populate('de_usuario', 'nombre foto_perfil idiomas plataformas');
         return res.json({ data: solicitudes });
     }
     catch (err) {
         console.log(err);
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 async function responderSolicitud(req, res) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
         const { id } = req.params; // id de la solicitud
         const { respuesta } = req.body; // "aceptar" o "rechazar"
-        if (respuesta !== 'aceptar' && respuesta !== 'rechazar') {
+        if (!['aceptar', 'rechazar'].includes(respuesta)) {
             return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'respuesta debe ser "aceptar" o "rechazar"' });
         }
         const solicitud = await solicitud_model_1.Solicitud.findById(id);
@@ -97,12 +112,14 @@ async function responderSolicitud(req, res) {
             return res.status(https_status_1.HttpStatus.NOT_FOUND).json({ message: 'No se encontro la solicitud' });
         }
         if (solicitud.a_usuario.toString() !== req.user._id.toString()) {
-            return res.status(https_status_1.HttpStatus.FORBIDDEN).json({ message: 'No puedes responder una solicitud que no es tuya' });
+            return res
+                .status(https_status_1.HttpStatus.FORBIDDEN)
+                .json({ message: 'No puedes responder una solicitud que no es tuya' });
         }
         if (solicitud.estado !== solicitud_types_1.EstadoSolicitud.PENDIENTE) {
             return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Esta solicitud ya fue respondida' });
         }
-        solicitud.estado = respuesta === 'aceptar' ? solicitud_types_1.EstadoSolicitud.ACEPTADA : solicitud_types_1.EstadoSolicitud.RECHAZADA;
+        solicitud.estado = obtenerEstadoRespuesta(respuesta);
         solicitud.fecha_respuesta = new Date();
         await solicitud.save();
         if (respuesta === 'aceptar') {
@@ -117,32 +134,28 @@ async function responderSolicitud(req, res) {
         return res.json({ message: 'Solicitud rechazada' });
     }
     catch (err) {
-        console.log(err);
-        if (err.name === 'CastError') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return manejarErrorSolicitud(err, res);
     }
 }
 async function listarSolicitudesEnviadas(req, res) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
         const solicitudes = await solicitud_model_1.Solicitud.find({
-            de_usuario: req.user._id
+            de_usuario: req.user._id,
         }).populate('a_usuario', 'nombre foto_perfil');
         return res.json({ data: solicitudes });
     }
     catch (err) {
         console.log(err);
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: MSG_ERROR_SERVIDOR });
     }
 }
 async function cancelarSolicitud(req, res) {
     try {
         if (typeof req.user === 'string' || !req.user) {
-            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: 'No autenticado' });
+            return res.status(https_status_1.HttpStatus.UNAUTHORIZED).json({ message: MSG_NO_AUTENTICADO });
         }
         const { id } = req.params;
         const usuarioId = req.user._id.toString();
@@ -151,10 +164,14 @@ async function cancelarSolicitud(req, res) {
             return res.status(https_status_1.HttpStatus.NOT_FOUND).json({ message: 'No se encontro la solicitud' });
         }
         if (solicitud.de_usuario.toString() !== usuarioId) {
-            return res.status(https_status_1.HttpStatus.FORBIDDEN).json({ message: 'No puedes cancelar una solicitud que no enviaste tú' });
+            return res
+                .status(https_status_1.HttpStatus.FORBIDDEN)
+                .json({ message: 'No puedes cancelar una solicitud que no enviaste tú' });
         }
         if (solicitud.estado !== solicitud_types_1.EstadoSolicitud.PENDIENTE) {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Solo se pueden cancelar solicitudes pendientes' });
+            return res
+                .status(https_status_1.HttpStatus.BAD_REQUEST)
+                .json({ message: 'Solo se pueden cancelar solicitudes pendientes' });
         }
         solicitud.estado = solicitud_types_1.EstadoSolicitud.CANCELADA;
         solicitud.fecha_respuesta = new Date();
@@ -162,10 +179,6 @@ async function cancelarSolicitud(req, res) {
         return res.json({ message: 'Solicitud cancelada exitosamente' });
     }
     catch (err) {
-        console.log(err);
-        if (err.name === 'CastError') {
-            return res.status(https_status_1.HttpStatus.BAD_REQUEST).json({ message: 'Id Invalido' });
-        }
-        return res.status(https_status_1.HttpStatus.SERVER_ERROR).json({ message: "Error del servidor" });
+        return manejarErrorSolicitud(err, res);
     }
 }

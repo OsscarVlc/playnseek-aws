@@ -16,7 +16,8 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
     "postinstall": "npm run build:clean",
-    "precommit": "eslint && jest && build"
+    "precommit": "eslint && jest && build",
+    "recover:dgraph": "ts-node src/scripts/recuperarUsuariosDgraph.ts"
   },
   "repository": {
     "type": "git",

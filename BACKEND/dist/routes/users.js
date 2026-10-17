@@ -215,4 +215,6 @@ router.post('/reenviar-confirmacion', users_controller_1.reenviarConfirmacion);
 router.patch('/:id/rol', auth_middleware_1.authMiddleware, allowRoles_1.requireAdmin, users_controller_1.cambiarRolUsuario);
 router.post('/juegos-activos/:juegoId', auth_middleware_1.authMiddleware, users_controller_1.agregarJuegoActivo);
 router.delete('/juegos-activos/:juegoId', auth_middleware_1.authMiddleware, users_controller_1.quitarJuegoActivo);
+router.post('/juegos-pasados/:juegoId', auth_middleware_1.authMiddleware, users_controller_1.agregarJuegoPasado);
+router.delete('/juegos-pasados/:juegoId', auth_middleware_1.authMiddleware, users_controller_1.quitarJuegoPasado);
 exports.default = router;

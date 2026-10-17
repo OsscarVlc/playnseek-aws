@@ -9,8 +9,8 @@ const transporter = nodemailer_1.default.createTransport({
     service: 'gmail',
     auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
+        pass: process.env.EMAIL_PASS,
+    },
 });
 async function enviarCorreoConfirmacion(destinatario, nombre, urlConfirmacion) {
     await transporter.sendMail({
@@ -22,6 +22,6 @@ async function enviarCorreoConfirmacion(destinatario, nombre, urlConfirmacion) {
             <p>Gracias por registrarte en Play N Seek. Confirma tu cuenta dando clic en el siguiente enlace:</p>
             <a href="${urlConfirmacion}">Confirmar mi cuenta</a>
             <p>Si no creaste esta cuenta, ignora este correo.</p>
-        `
+        `,
     });
 }

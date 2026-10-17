@@ -30,12 +30,12 @@ const userSchema = new mongoose_1.Schema({
     ],
     juegos_activos: [
         {
-            juego_id: { type: mongoose_1.Schema.Types.ObjectId },
+            juego_id: { type: mongoose_1.Schema.Types.ObjectId, ref: 'Juego' },
             busca_equipo: { type: Boolean },
             desde: { type: Date },
         },
     ],
-    juegos_pasados: { type: [mongoose_1.Schema.Types.ObjectId] },
+    juegos_pasados: { type: [mongoose_1.Schema.Types.ObjectId], ref: 'Juego' },
 });
 //Exportamos el modelo de usuario para poder usarlo en otras partes del proyecto
 exports.User = (0, mongoose_1.model)('User', userSchema);

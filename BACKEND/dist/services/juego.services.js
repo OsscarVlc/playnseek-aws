@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buscarJuegoEnRAWG = buscarJuegoEnRAWG;
 exports.obtenerDetalleJuegoRAWG = obtenerDetalleJuegoRAWG;
+exports.mapearPlataformas = mapearPlataformas;
+exports.mapearGeneros = mapearGeneros;
 exports.transformarJuegoRAWG = transformarJuegoRAWG;
 const user_types_1 = require("../types/user.types");
 //Buscar una lista de posibles juegos

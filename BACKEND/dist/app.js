@@ -16,15 +16,14 @@ function createApp() {
     app = (0, express_1.default)();
     app.use(express_1.default.json());
     app.use((0, cookie_parser_1.default)());
-    app.use(auth_vistas_middleware_1.inyectarUsuarioEnVistas); // middleware global para inyectar usuario en vistas
+    app.use(auth_vistas_middleware_1.inyectarUsuarioEnVistas);
     app.use(express_1.default.urlencoded({ extended: true }));
-    app.use(express_1.default.static(path_1.default.join(__dirname, '..', 'public')));
-    // Configuración de Handlebars
+    app.use(express_1.default.static(path_1.default.join(__dirname, '..', '..', 'FRONTEND', 'public')));
     app.engine('handlebars', (0, express_handlebars_1.engine)({
         helpers: handlebars_helpers_1.handlebarsHelpers,
     }));
     app.set('view engine', 'handlebars');
-    app.set('views', path_1.default.join(__dirname, '..', 'views'));
+    app.set('views', path_1.default.join(__dirname, '..', '..', 'FRONTEND', 'views'));
     app.use(routes_1.default);
     return app;
 }

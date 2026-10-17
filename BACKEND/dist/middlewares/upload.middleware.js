@@ -16,5 +16,5 @@ exports.upload = (0, multer_1.default)({
             return cb(new Error('Solo se permiten archivos de imagen'));
         }
         cb(null, true);
-    }
+    },
 });

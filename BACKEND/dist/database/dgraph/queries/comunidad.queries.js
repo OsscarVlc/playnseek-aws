@@ -38,12 +38,11 @@ exports.agregarMiembroComunidad = agregarMiembroComunidad;
 exports.quitarMiembroComunidad = quitarMiembroComunidad;
 const dgraph = __importStar(require("dgraph-js"));
 const dgraph_config_1 = require("../../../config/dgraph.config");
-async function crearComunidadEnDgraph(mongoId, nombreComunidad, creacion // fecha en formato ISO
-) {
+async function crearComunidadEnDgraph(mongoId, nombreComunidad, creacion) {
     const txn = dgraph_config_1.dgraphClient.newTxn();
     try {
         const nuevaComunidad = {
-            "dgraph.type": "Comunidad",
+            'dgraph.type': 'Comunidad',
             mongo_id: mongoId,
             nombre_comunidad: nombreComunidad,
             creacion: creacion,
@@ -59,13 +58,13 @@ async function crearComunidadEnDgraph(mongoId, nombreComunidad, creacion // fech
                 nuevoUid = uid;
         });
         if (!nuevoUid) {
-            throw new Error("Dgraph no devolvió un uid para el nodo Comunidad recién creado");
+            throw new Error('Dgraph no devolvió un uid para el nodo Comunidad recién creado');
         }
         console.log(`Nodo Comunidad creado en Dgraph con uid: ${nuevoUid}`);
         return nuevoUid;
     }
     catch (err) {
-        console.error("Error creando la comunidad en Dgraph:", err);
+        console.error('Error creando la comunidad en Dgraph:', err);
         throw err;
     }
     finally {

@@ -174,3 +174,73 @@ export async function sincronizarJuegosUsuario(mongoId: string, mongoIdsJuegos: 
         throw err;
     }
 }
+
+// cambios para lambda --------------------------------------------------------------------------------------
+interface NodoJuegoEncontrado {
+    uid: string;
+    'dgraph.type'?: string[];
+}
+
+interface ResultadoBusquedaJuego {
+    juegos?: NodoJuegoEncontrado[];
+}
+
+/**
+ * Busca un juego por mongo_id y lo crea únicamente si no existe.
+ * Devuelve su UID e indica si fue creado durante esta operación.
+ */
+export async function asegurarJuegoEnDgraph(
+    mongoId: string,
+    titulo: string,
+): Promise<{ uid: string; creado: boolean }> {
+    const txn = dgraphClient.newTxn();
+
+    try {
+        const query = `
+            query buscar($mongoId: string) {
+                juegos(func: eq(mongo_id, $mongoId)) {
+                    uid
+                    dgraph.type
+                }
+            }
+        `;
+
+        const respuesta = await txn.queryWithVars(query, { $mongoId: mongoId });
+        const datos = respuesta.getJson() as ResultadoBusquedaJuego;
+        const juegos = datos.juegos ?? [];
+
+        if (juegos.length > 1) {
+            throw new Error(`Existen varios nodos con mongo_id: ${mongoId}`);
+        }
+
+        const existente = juegos[0];
+
+        if (existente) {
+            if (!existente['dgraph.type']?.includes('Juego')) {
+                throw new Error(`El nodo con mongo_id ${mongoId} no es de tipo Juego`);
+            }
+
+            return { uid: existente.uid, creado: false };
+        }
+
+        const mutacion = new dgraph.Mutation();
+        mutacion.setSetJson({
+            uid: '_:juego',
+            'dgraph.type': 'Juego',
+            mongo_id: mongoId,
+            nombre_juego: titulo,
+        });
+        mutacion.setCommitNow(true);
+
+        const resultado = await txn.mutate(mutacion);
+        const uid = resultado.getUidsMap().get('juego');
+
+        if (!uid) {
+            throw new Error(`Dgraph no devolvió el UID del juego ${mongoId}`);
+        }
+
+        return { uid, creado: true };
+    } finally {
+        await txn.discard();
+    }
+}

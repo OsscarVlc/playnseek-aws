@@ -8,7 +8,7 @@ exports.handlebarsHelpers = {
             playstation: 'primary',
             xbox: 'success',
             nintendo_switch: 'danger',
-            mobile: 'warning'
+            mobile: 'warning',
         };
         return colores[plataforma] || 'secondary';
     },

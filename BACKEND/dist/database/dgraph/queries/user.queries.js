@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.crearUsuarioEnDgraph = crearUsuarioEnDgraph;
 exports.actualizarUsuarioEnDgraph = actualizarUsuarioEnDgraph;
+exports.asegurarUsuarioEnDgraph = asegurarUsuarioEnDgraph;
 const dgraph = __importStar(require("dgraph-js"));
 const dgraph_config_1 = require("../../../config/dgraph.config");
 async function crearUsuarioEnDgraph(// crearemos el usuario en dgraph
@@ -74,8 +75,7 @@ nombre) {
     }
 }
 async function actualizarUsuarioEnDgraph(mongoId, // recibimos el id del usuario que modificaremos
-cambios // recibimos lo que vamos a modificar o actualizar
-) {
+cambios) {
     const txn = dgraph_config_1.dgraphClient.newTxn(); // nueva transaccion
     try {
         // Buscamos el uid del nodo por mongo_id
@@ -102,6 +102,53 @@ cambios // recibimos lo que vamos a modificar o actualizar
     catch (err) {
         console.error(`Error actualizando usuario en Dgraph:`, err);
         throw err;
+    }
+    finally {
+        await txn.discard();
+    }
+}
+/**
+ * Busca un usuario por mongo_id y lo crea únicamente si no existe.
+ * Devuelve su UID e indica si fue creado durante esta operación.
+ */
+async function asegurarUsuarioEnDgraph(mongoId, nombre) {
+    const txn = dgraph_config_1.dgraphClient.newTxn();
+    try {
+        const query = `
+            query buscar($mongoId: string) {
+                usuarios(func: eq(mongo_id, $mongoId)) {
+                    uid
+                    dgraph.type
+                }
+            }
+        `;
+        const respuesta = await txn.queryWithVars(query, { $mongoId: mongoId });
+        const datos = respuesta.getJson();
+        const usuarios = datos.usuarios ?? [];
+        if (usuarios.length > 1) {
+            throw new Error(`Existen varios nodos con mongo_id: ${mongoId}`);
+        }
+        const existente = usuarios[0];
+        if (existente) {
+            if (!existente['dgraph.type']?.includes('Usuario')) {
+                throw new Error(`El nodo con mongo_id ${mongoId} no es de tipo Usuario`);
+            }
+            return { uid: existente.uid, creado: false };
+        }
+        const mutacion = new dgraph.Mutation();
+        mutacion.setSetJson({
+            uid: '_:usuario',
+            'dgraph.type': 'Usuario',
+            mongo_id: mongoId,
+            nombre,
+        });
+        mutacion.setCommitNow(true);
+        const resultado = await txn.mutate(mutacion);
+        const uid = resultado.getUidsMap().get('usuario');
+        if (!uid) {
+            throw new Error(`Dgraph no devolvió el UID del usuario ${mongoId}`);
+        }
+        return { uid, creado: true };
     }
     finally {
         await txn.discard();

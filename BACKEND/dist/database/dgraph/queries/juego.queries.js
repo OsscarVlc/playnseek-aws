@@ -175,6 +175,7 @@ async function conectarJuegosAUsuario(usuarioUid, juegoUids) {
     }
 }
 async function sincronizarJuegosUsuario(mongoId, mongoIdsJuegos) {
+    // Reemplazaremos las conexiones "usuario_juega" de un usuario
     try {
         const usuarioUid = await buscarUidUsuarioPorMongoId(mongoId);
         await borrarJuegosDeUsuario(usuarioUid); // borramos las viejas para crear las que correspondan a la lista actual de juegos_activos

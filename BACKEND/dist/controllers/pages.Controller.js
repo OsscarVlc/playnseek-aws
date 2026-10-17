@@ -19,6 +19,28 @@ const juego_model_1 = require("../database/mongo/models/juego.model");
 const grupo_model_1 = require("../database/mongo/models/grupo.model");
 const user_types_1 = require("../types/user.types");
 const confirmacion_service_1 = require("../services/confirmacion.service");
+// agregamos constantes para resolver warnings con eslint
+const VISTA_JUEGO_DETALLE = 'juego-detalle';
+const VISTA_GRUPO_DETALLE = 'grupo-detalle';
+/**
+ * Obtiene si el usuario tiene el juego activo o pasado
+ * y si está buscando equipo para ese juego.
+ */
+async function obtenerEstadoJuegoUsuario(req, juegoId) {
+    let esActivo = false;
+    let esPasado = false;
+    let buscaEquipo = false;
+    if (typeof req.user === 'object' && req.user !== null) {
+        const usuario = await user_model_1.User.findById(req.user._id).lean();
+        const entrada = (usuario?.juegos_activos || []).find((j) => j.juego_id.toString() === juegoId);
+        if (entrada) {
+            esActivo = true;
+            buscaEquipo = entrada.busca_equipo;
+        }
+        esPasado = (usuario?.juegos_pasados || []).some((jId) => jId.toString() === juegoId);
+    }
+    return { esActivo, esPasado, buscaEquipo };
+}
 function mostrarIndex(req, res) {
     res.render('index'); // res.locals.estaLogueado ya está disponible en la vista sin pasarlo aquí
 }
@@ -43,6 +65,7 @@ async function mostrarPerfil(req, res) {
         const usuario = await user_model_1.User.findById(req.user._id)
             .select('-contrasena_hash')
             .populate('juegos_activos.juego_id', 'titulo')
+            .populate('juegos_pasados', 'titulo')
             .lean();
         const token = req.cookies.token;
         const zonasHorarias = ['GMT-8', 'GMT-7', 'GMT-6', 'GMT-5', 'GMT-4', 'GMT-3'];
@@ -56,7 +79,7 @@ async function mostrarPerfil(req, res) {
             plataformas: Object.values(user_types_1.Plataforma),
             zonasHorarias,
             horariosJuego,
-            diasSemana
+            diasSemana,
         });
     }
     catch (err) {
@@ -82,29 +105,21 @@ async function mostrarDetalleJuego(req, res, next) {
         }
         const juego = await juego_model_1.Juego.findById(id).lean();
         if (!juego || !juego.activo) {
-            return res.render('juego-detalle', { error: 'No se encontró el juego' });
+            return res.render(VISTA_JUEGO_DETALLE, { error: 'No se encontró el juego' });
         }
-        let esActivo = false;
-        let buscaEquipo = false;
-        if (typeof req.user === 'object' && req.user !== null) {
-            const usuario = await user_model_1.User.findById(req.user._id).lean();
-            const entrada = (usuario?.juegos_activos || []).find((j) => j.juego_id.toString() === id);
-            if (entrada) {
-                esActivo = true;
-                buscaEquipo = entrada.busca_equipo;
-            }
-        }
-        res.render('juego-detalle', {
+        const { esActivo, esPasado, buscaEquipo } = await obtenerEstadoJuegoUsuario(req, id);
+        res.render(VISTA_JUEGO_DETALLE, {
             juego,
             esActivo,
+            esPasado,
             buscaEquipo,
             juegoId: id,
-            token: req.cookies.token
+            token: req.cookies.token,
         });
     }
     catch (err) {
         console.log(err);
-        res.render('juego-detalle', { error: 'No se encontró el juego' });
+        res.render(VISTA_JUEGO_DETALLE, { error: 'No se encontró el juego' });
     }
 }
 async function mostrarGrupos(req, res) {
@@ -131,7 +146,7 @@ async function mostrarDetalleGrupo(req, res) {
             .populate('integrantes', 'nombre foto_perfil')
             .lean();
         if (!grupo || !grupo.activo) {
-            return res.render('grupo-detalle', { error: 'No se encontro el grupo' });
+            return res.render(VISTA_GRUPO_DETALLE, { error: 'No se encontro el grupo' });
         }
         let miUsuarioId = null;
         let esIntegrante = false;
@@ -143,19 +158,19 @@ async function mostrarDetalleGrupo(req, res) {
             esIntegrante = perteneceAlGrupo || esAdmin;
             esLider = grupo.lider_id.toString() === miUsuarioId;
         }
-        res.render('grupo-detalle', {
+        res.render(VISTA_GRUPO_DETALLE, {
             grupo,
             esIntegrante,
             esLider,
             estaLogueado: miUsuarioId !== null,
             token: req.cookies.token,
             grupoId: id,
-            miUsuarioId
+            miUsuarioId,
         });
     }
     catch (err) {
         console.log(err);
-        res.render('grupo-detalle', { error: 'No se encontro el grupo' });
+        res.render(VISTA_GRUPO_DETALLE, { error: 'No se encontro el grupo' });
     }
 }
 async function mostrarConfirmacion(req, res) {
@@ -193,7 +208,7 @@ async function mostrarChatPrivado(req, res) {
         otroUsuario,
         token,
         otroUsuarioId: id,
-        miUsuarioId: req.user._id.toString() // nuevo
+        miUsuarioId: req.user._id.toString(), // nuevo
     });
 }
 async function mostrarAdminUsuarios(req, res) {

@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.nombreSalaPrivada = nombreSalaPrivada;
 exports.configurarChatPrivadoSocket = configurarChatPrivadoSocket;
 const mensaje_model_1 = require("../database/mongo/models/mensaje.model");
 const match_queries_1 = require("../database/dgraph/queries/match.queries");
@@ -22,9 +23,12 @@ function configurarChatPrivadoSocket(io) {
             const mensajes = await mensaje_model_1.Mensaje.find({
                 $or: [
                     { usuario_id: socket.usuarioId, destinatario_id: otroUsuarioId },
-                    { usuario_id: otroUsuarioId, destinatario_id: socket.usuarioId }
-                ]
-            }).sort({ fecha: 1 }).limit(50).lean();
+                    { usuario_id: otroUsuarioId, destinatario_id: socket.usuarioId },
+                ],
+            })
+                .sort({ fecha: 1 })
+                .limit(50)
+                .lean();
             socket.emit('historial_privado', mensajes);
         });
         socket.on('mensaje_privado_nuevo', async ({ destinatarioId, contenido }) => {
@@ -39,7 +43,7 @@ function configurarChatPrivadoSocket(io) {
                 usuario_id: socket.usuarioId,
                 destinatario_id: destinatarioId,
                 contenido,
-                fecha: new Date()
+                fecha: new Date(),
             });
             const doc = await nuevoMensaje.save();
             const sala = nombreSalaPrivada(socket.usuarioId, destinatarioId);

@@ -40,13 +40,18 @@ const grpc = __importStar(require("@grpc/grpc-js")); // protocolo de comunicacio
 const fs = __importStar(require("fs")); // leeremos el archivo del esquema
 const path = __importStar(require("path")); // construiremos rutas de archivos
 // Direccion de nuestro servidor, usamos el puerto de gRPC
-const DGRAPH_ADDRESS = 'localhost:9080';
+//Cambio para lambda
+const DGRAPH_ADDRESS = process.env.DGRAPH_ADDRESS || 'localhost:9080';
+// habilitamos TLS segun el entorno
+const credencialesDgraph = process.env.DGRAPH_TLS === 'true'
+    ? grpc.credentials.createSsl()
+    : grpc.credentials.createInsecure();
 // CREAMOS CONEXION ---------------------------------------------------
 // Cliente gRPC
 const clientStub = new dgraph.DgraphClientStub(
 // creamos la conexion principal
 DGRAPH_ADDRESS, // le pasamos la direccion
-grpc.credentials.createInsecure());
+credencialesDgraph);
 exports.clientStub = clientStub;
 // Cliente de Dgraph que usaremos para queries/mutaciones
 const dgraphClient = new dgraph.DgraphClient(clientStub);

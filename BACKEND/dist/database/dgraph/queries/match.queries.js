@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.crearMatchEnDgraph = crearMatchEnDgraph;
 exports.obtenerMatchesDeUsuario = obtenerMatchesDeUsuario;
+exports.eliminarMatchEntreUsuarios = eliminarMatchEntreUsuarios;
 const dgraph = __importStar(require("dgraph-js"));
 const dgraph_config_1 = require("../../../config/dgraph.config");
 async function buscarUidUsuarioPorMongoId(mongoId) {
@@ -58,7 +59,7 @@ async function buscarUidUsuarioPorMongoId(mongoId) {
         await txn.discard();
     }
 }
-// Conectamos a un usuario con un nodo Match 
+// Conectamos a un usuario con un nodo Match
 // Usamos "set" (agregar), no reemplaza las conexiones existentes, porque un usuario puede tener varios matches a la vez.
 async function conectarUsuarioAMatch(usuarioUid, matchUid) {
     const txn = dgraph_config_1.dgraphClient.newTxn();
@@ -75,7 +76,7 @@ async function conectarUsuarioAMatch(usuarioUid, matchUid) {
         await txn.discard();
     }
 }
-// Creamos el nodo Match en Dgraph y lo conecta con ambos usuarios con la arista usuario_conecta 
+// Creamos el nodo Match en Dgraph y lo conecta con ambos usuarios con la arista usuario_conecta
 async function crearMatchEnDgraph(mongoIdUsuarioA, mongoIdUsuarioB) {
     const usuarioAUid = await buscarUidUsuarioPorMongoId(mongoIdUsuarioA);
     const usuarioBUid = await buscarUidUsuarioPorMongoId(mongoIdUsuarioB);
@@ -83,7 +84,7 @@ async function crearMatchEnDgraph(mongoIdUsuarioA, mongoIdUsuarioB) {
     let matchUid;
     try {
         const nuevoMatch = {
-            "dgraph.type": "Match",
+            'dgraph.type': 'Match',
             fecha: new Date().toISOString(),
         };
         const mu = new dgraph.Mutation();
@@ -96,7 +97,7 @@ async function crearMatchEnDgraph(mongoIdUsuarioA, mongoIdUsuarioB) {
                 matchUid = uid;
         });
         if (!matchUid) {
-            throw new Error("Dgraph no devolvió un uid para el nodo Match recién creado");
+            throw new Error('Dgraph no devolvió un uid para el nodo Match recién creado');
         }
         console.log(`Nodo Match creado en Dgraph con uid: ${matchUid}`);
     }
@@ -145,6 +146,64 @@ async function obtenerMatchesDeUsuario(mongoId) {
     catch (err) {
         console.error(`Error obteniendo matches de ${mongoId}:`, err);
         throw err;
+    }
+    finally {
+        await txn.discard();
+    }
+}
+// Busca el uid del nodo Match que conecta a dos usuarios específicos
+async function buscarUidMatchEntreUsuarios(mongoIdA, mongoIdB) {
+    const txn = dgraph_config_1.dgraphClient.newTxn();
+    try {
+        const query = `
+      query buscarMatch($mongoIdA: string, $mongoIdB: string) {
+        usuario(func: eq(mongo_id, $mongoIdA)) {
+          usuario_conecta {
+            uid
+            companero: ~usuario_conecta @filter(eq(mongo_id, $mongoIdB)) {
+              mongo_id
+            }
+          }
+        }
+      }
+    `;
+        const res = await txn.queryWithVars(query, {
+            $mongoIdA: mongoIdA,
+            $mongoIdB: mongoIdB,
+        });
+        const data = res.getJson();
+        if (!data.usuario || data.usuario.length === 0) {
+            return null;
+        }
+        const conexiones = data.usuario[0].usuario_conecta || [];
+        const matchEncontrado = conexiones.find((c) => c.companero && c.companero.length > 0);
+        return matchEncontrado ? matchEncontrado.uid : null;
+    }
+    finally {
+        await txn.discard();
+    }
+}
+// Elimina el match (y sus conexiones) entre dos usuarios
+async function eliminarMatchEntreUsuarios(mongoIdA, mongoIdB) {
+    const matchUid = await buscarUidMatchEntreUsuarios(mongoIdA, mongoIdB);
+    if (!matchUid) {
+        throw new Error('No se encontró un match entre estos usuarios');
+    }
+    const usuarioAUid = await buscarUidUsuarioPorMongoId(mongoIdA);
+    const usuarioBUid = await buscarUidUsuarioPorMongoId(mongoIdB);
+    const txn = dgraph_config_1.dgraphClient.newTxn();
+    try {
+        const mu = new dgraph.Mutation();
+        // Elimina las aristas usuario_conecta de ambos usuarios hacia el nodo Match
+        mu.setDeleteJson([
+            { uid: usuarioAUid, usuario_conecta: [{ uid: matchUid }] },
+            { uid: usuarioBUid, usuario_conecta: [{ uid: matchUid }] },
+            // Elimina el nodo Match por completo (S * *)
+            { uid: matchUid },
+        ]);
+        mu.setCommitNow(true);
+        await txn.mutate(mu);
+        console.log(`Match ${matchUid} eliminado entre ${mongoIdA} y ${mongoIdB}`);
     }
     finally {
         await txn.discard();
