@@ -1,0 +1,20 @@
+# Copiar como terraform.tfvars y completar. terraform.tfvars NO se sube al repo.
+
+# Rama que se clona en el primer arranque (main después del merge)
+repo_branch = "main"
+
+# Restaurar Dgraph desde un snapshot (opcional)
+# data_snapshot_id = "snap-0123456789abcdef0"
+
+# Variables secretas de BACKEND/.env
+# APP_URL, DGRAPH_ADDRESS y PORT las calcula Terraform.
+app_env = {
+  MONGODB_URI           = "mongodb+srv://usuario:password@cluster.mongodb.net/playnseek"
+  JWT_SECRET            = "cambia-esto"
+  RAWG_KEY              = ""
+  EMAIL_USER            = ""
+  EMAIL_PASS            = ""
+  CLOUDINARY_CLOUD_NAME = ""
+  CLOUDINARY_API_KEY    = ""
+  CLOUDINARY_API_SECRET = ""
+}

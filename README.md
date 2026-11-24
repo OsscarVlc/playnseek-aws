@@ -11,23 +11,34 @@ Proyecto integrador de Desarrollo en la Nube, ITESO.
 - Backend: TypeScript, Node.js, Express y Socket.io.
 - Frontend: Handlebars, JavaScript y CSS.
 - Bases de datos: MongoDB Atlas y Dgraph.
-- Despliegue: AWS EC2, EBS, Docker Compose, Nginx y systemd.
+- Despliegue: AWS EC2, EBS, Secrets Manager, Docker Compose, Nginx y systemd.
+- Infraestructura como código: Terraform.
+- CI/CD: GitHub Actions.
 
-## Estado de la Fase 2
+## Despliegue en AWS
 
-La aplicación está desplegada en EC2 y conectada a MongoDB Atlas.
-Dgraph se ejecuta en contenedores con almacenamiento persistente
-en un volumen EBS.
+La infraestructura se crea con Terraform desde `infra/`:
 
-Se verificaron la carga de la página, el inicio de sesión,
-la salud de Dgraph y sus montajes de almacenamiento.
+    cd infra
+    cp terraform.tfvars.example terraform.tfvars
+    terraform init
+    terraform apply
 
-S3 y Lambda están pendientes de integración. Los datos de Dgraph
-local todavía no se han migrado al despliegue de AWS.
+Un solo `apply` crea EC2, Elastic IP, volumen EBS para Dgraph, security group y el
+secreto con las variables de entorno, y deja la aplicación funcionando.
+Instrucciones completas en [infra/README.md](infra/README.md).
+
+## CI/CD
+
+- **CI** (`.github/workflows/ci.yml`): en cada Pull Request se ejecutan lint,
+  build y pruebas unitarias.
+- **CD** (`.github/workflows/deploy.yml`): al integrar en `main` se repiten las
+  pruebas y, si pasan, se actualiza la app en EC2 por SSH y se verifica que responda.
 
 ## Documentación
 
-- [Despliegue en AWS](docs/despliegue-aws.md)
+- [Infraestructura con Terraform](infra/README.md)
+- [Despliegue manual paso a paso (Fase 2)](docs/despliegue-aws.md)
 - [Avances, responsables y pendientes](docs/estado-fase2.md)
 
 ## Ejecución local
@@ -62,7 +73,7 @@ Desde BACKEND:
 
     npm test
 
-La ejecución completa de las pruebas en AWS está pendiente.
+Las mismas pruebas se ejecutan en GitHub Actions en cada Pull Request.
 
 ## Equipo
 
@@ -75,6 +86,7 @@ La ejecución completa de las pruebas en AWS está pendiente.
 El archivo .env no debe subirse al repositorio.
 .env.example documenta las variables necesarias.
 
-Los scripts de AWS utilizan el perfil LabInstanceProfile
-con LabRole. Los identificadores de infraestructura deben
-adaptarse a la cuenta donde se despliegue.
+En AWS las variables se guardan en Secrets Manager y la instancia
+genera BACKEND/.env en el arranque. infra/terraform.tfvars tampoco
+se sube al repositorio. Se utilizan LabInstanceProfile y LabRole
+porque Learner Lab no permite crear roles.
