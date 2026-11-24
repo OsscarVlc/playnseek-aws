@@ -2,9 +2,14 @@
 # Security group: HTTP/HTTPS para todos y SSH para el despliegue de CI/CD
 # ---------------------------------------------------------------------------
 resource "aws_security_group" "web" {
-  name        = "${var.project_name}-web-sg"
+  # name_prefix evita choques con el grupo creado a mano en la Fase 2.
+  name_prefix = "${var.project_name}-tf-web-"
   description = "Acceso web a PlayNSeek"
   vpc_id      = data.aws_vpc.default.id
+
+  lifecycle {
+    create_before_destroy = true
+  }
 
   ingress {
     description = "HTTP"
