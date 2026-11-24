@@ -4,10 +4,6 @@ import * as fs from 'fs'; // leeremos el archivo del esquema
 import * as path from 'path'; // construiremos rutas de archivos
 
 // Direccion de nuestro servidor, usamos el puerto de gRPC
-<<<<<<< HEAD
-const DGRAPH_ADDRESS = process.env.DGRAPH_ADDRESS || 'localhost:9080';
-=======
-//Cambio para lambda
 const DGRAPH_ADDRESS = process.env.DGRAPH_ADDRESS || 'localhost:9080';
 
 // habilitamos TLS segun el entorno
@@ -15,7 +11,6 @@ const credencialesDgraph =
     process.env.DGRAPH_TLS === 'true'
         ? grpc.credentials.createSsl()
         : grpc.credentials.createInsecure();
->>>>>>> sergio
 
 // CREAMOS CONEXION ---------------------------------------------------
 

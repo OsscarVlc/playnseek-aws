@@ -8,5 +8,8 @@ module.exports = {
   transform: {
     ...tsJestTransformCfg,
   },
-  setupFiles: ["<rootDir>/jest.setup.ts"], 
+  // Solo se prueban los archivos fuente; dist/ contiene JS compilado.
+  roots: ["<rootDir>/src"],
+  testPathIgnorePatterns: ["/node_modules/", "/dist/"],
+  setupFiles: ["<rootDir>/jest.setup.ts"],
 };

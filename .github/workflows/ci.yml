@@ -1,0 +1,40 @@
+# Integración continua: se ejecuta en cada Pull Request y en cada push.
+# Verifica que el backend instale, pase lint, compile y pase las pruebas unitarias.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main] # en main corre el pipeline de despliegue (deploy.yml)
+  workflow_call: # permite que deploy.yml reutilice este mismo job
+
+jobs:
+  test:
+    name: Lint, build y pruebas
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: BACKEND
+    env:
+      # Valor solo para pruebas; el secreto real vive en AWS Secrets Manager.
+      JWT_SECRET: ci-test-secret
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: BACKEND/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Pruebas unitarias
+        run: npx jest --ci
