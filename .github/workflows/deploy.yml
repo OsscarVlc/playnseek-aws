@@ -47,6 +47,7 @@ jobs:
           cd BACKEND
           npm ci
           npm run build
+          bash ../scripts/refresh-env.sh
           sudo systemctl restart playnseek-app.service
           EOF
 

@@ -61,6 +61,10 @@ Ejemplo de `APP_ENV_JSON` (APP_URL, DGRAPH_ADDRESS y PORT los calcula Terraform)
 Cuando alguien agrega un `.tf` (por ejemplo `s3.tf`), basta con hacer merge de su PR
 y volver a correr **Deploy infra**.
 
+Si cambia `APP_ENV_JSON`, después de **Deploy infra** hay que correr **Deploy**
+(Actions → Deploy → Run workflow): ese pipeline vuelve a escribir `BACKEND/.env`
+desde Secrets Manager con `scripts/refresh-env.sh` y reinicia la app.
+
 ## Destruir la infraestructura
 
 1. Opcional: `bash scripts/snapshot-data-volume.sh` para conservar los datos de Dgraph.
