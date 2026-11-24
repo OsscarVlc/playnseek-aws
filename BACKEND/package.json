@@ -17,7 +17,8 @@
     "format:check": "prettier --check \"src/**/*.ts\"",
     "postinstall": "npm run build:clean",
     "precommit": "eslint && jest && build",
-    "recover:dgraph": "ts-node src/scripts/recuperarUsuariosDgraph.ts"
+    "recover:dgraph": "ts-node src/scripts/recuperarUsuariosDgraph.ts",
+    "build:lambda": "esbuild src/lambdas/notificarMatch.handler.ts --bundle --platform=node --target=node22 --outfile=dist-lambda/notificarMatch.js"
   },
   "repository": {
     "type": "git",
@@ -32,6 +33,7 @@
   },
   "homepage": "https://github.com/SergioABC123/Proyecto-Servidor#readme",
   "dependencies": {
+    "@aws-sdk/client-sns": "^3.1177.0",
     "@grpc/grpc-js": "^1.14.4",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.10.0",
@@ -64,6 +66,7 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "copyfiles": "^2.4.1",
+    "esbuild": "^0.28.2",
     "eslint": "^10.6.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import-x": "^4.17.1",

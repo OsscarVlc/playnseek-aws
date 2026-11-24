@@ -7,6 +7,7 @@ import { crearMatchEnDgraph } from '../database/dgraph/queries/match.queries';
 
 jest.mock('../database/mongo/models/solicitud.model');
 jest.mock('../database/dgraph/queries/match.queries');
+jest.mock('../services/notificaciones.service');
 
 describe('enviarSolicitud', () => {
     it('debería rechazar con 400 si el usuario intenta enviarse una solicitud a sí mismo', async () => {

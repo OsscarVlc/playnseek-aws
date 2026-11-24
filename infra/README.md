@@ -14,6 +14,13 @@ HCP Terraform.
 | EC2 t3.medium (AL2023) | `ec2.tf` | App, Nginx y Dgraph en Docker |
 | Volumen EBS gp3 20 GiB | `ec2.tf` | Datos de Dgraph separados del disco del sistema |
 | Secreto | `secrets.tf` | Variables de `BACKEND/.env` en Secrets Manager |
+| Topic SNS `playnseek-matches` | `sns.tf` | La app publica aquí cada match (flujo 2) |
+| Lambda `playnseek-notificar-match` | `lambda.tf` | Suscrita al topic; manda el correo de match a los dos usuarios |
+
+El código de la Lambda está en `BACKEND/src/lambdas/notificarMatch.handler.ts` y se
+empaqueta con `npm run build:lambda` (esbuild). Los workflows **Deploy infra** y
+**Destroy infra** lo compilan antes de correr Terraform; a mano hay que correrlo en
+`BACKEND` antes de `terraform plan`.
 
 `user_data.sh.tftpl` se ejecuta en el primer arranque y reutiliza los scripts de
 `scripts/`: instala dependencias, formatea el volumen solo si está vacío, lo monta,
@@ -99,7 +106,7 @@ sudo dnf install -y terraform
 
 ## Agregar recursos
 
-Cada integrante agrega su propio archivo en esta carpeta (`s3.tf`, `sns.tf`,
-`lambda.tf`, `cloudwatch.tf`). Se pueden reutilizar `data.aws_iam_role.lab`,
+Cada integrante agrega su propio archivo en esta carpeta (`s3.tf`,
+`cloudwatch.tf`). Se pueden reutilizar `data.aws_iam_role.lab`,
 `aws_instance.app` y `var.project_name`. Si la app necesita una variable nueva
 (por ejemplo el nombre del bucket), se agrega en `local.app_env` de `secrets.tf`.

@@ -3,8 +3,8 @@
 #   ec2.tf        red, instancia, Elastic IP y volumen EBS de Dgraph
 #   secrets.tf    variables de entorno de la app en Secrets Manager
 #   s3.tf         (Sofía)  bucket de fotos de perfil
-#   sns.tf        (Sergio) notificaciones de match
-#   lambda.tf     (Sergio) función que consume SNS
+#   sns.tf        topic de eventos de match
+#   lambda.tf     función que consume SNS y manda el correo de match
 #   cloudwatch.tf (Sergio) métricas, alarmas y dashboard
 
 terraform {
@@ -25,6 +25,12 @@ terraform {
     aws = {
       source  = "hashicorp/aws"
       version = ">= 5.0"
+    }
+
+    # Empaqueta el código de la Lambda en un zip (lambda.tf)
+    archive = {
+      source  = "hashicorp/archive"
+      version = ">= 2.4"
     }
   }
 }

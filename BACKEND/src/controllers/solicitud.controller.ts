@@ -4,6 +4,7 @@ import { HttpStatus } from '../types/https-status';
 import { Solicitud } from '../database/mongo/models/solicitud.model';
 import { EstadoSolicitud } from '../types/solicitud.types';
 import { crearMatchEnDgraph } from '../database/dgraph/queries/match.queries';
+import { notificarMatch } from '../services/notificaciones.service';
 
 const MSG_NO_AUTENTICADO = 'No autenticado';
 const MSG_ID_INVALIDO = 'Id Invalido';
@@ -72,6 +73,9 @@ export async function enviarSolicitud(req: AuthRequest, res: Response) {
             } catch (err) {
                 console.error(`Match auto-aceptado en Mongo pero FALLÓ la sincronización con Dgraph:`, err);
             }
+
+            // Avisa del match por SNS (la Lambda notificarMatch manda los correos)
+            await notificarMatch(deUsuario, aUsuario);
 
             return res.json({ message: '¡Es un match! Ambos se enviaron solicitud mutuamente', match: true });
         }
@@ -147,6 +151,9 @@ export async function responderSolicitud(req: AuthRequest, res: Response) {
             } catch (err) {
                 console.error(`Match aceptado en Mongo pero FALLÓ la sincronización con Dgraph:`, err);
             }
+
+            // Avisa del match por SNS (la Lambda notificarMatch manda los correos)
+            await notificarMatch(solicitud.de_usuario.toString(), solicitud.a_usuario.toString());
             return res.json({ message: '¡Es un match!' });
         }
 

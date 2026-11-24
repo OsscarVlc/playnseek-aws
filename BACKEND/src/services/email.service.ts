@@ -21,3 +21,26 @@ export async function enviarCorreoConfirmacion(destinatario: string, nombre: str
         `,
     });
 }
+
+/**
+ * Avisa a un usuario que hizo match con otro jugador.
+ * La usa la Lambda notificarMatch, que recibe el evento desde SNS.
+ */
+export async function enviarCorreoMatch(
+    destinatario: string,
+    nombre: string,
+    nombreCompanero: string,
+    urlMatches: string,
+) {
+    await transporter.sendMail({
+        from: `"Play N Seek" <${process.env.EMAIL_USER}>`,
+        to: destinatario,
+        subject: `¡Hiciste match con ${nombreCompanero}!`,
+        html: `
+            <h2>¡Hola, ${nombre}!</h2>
+            <p>Tú y <strong>${nombreCompanero}</strong> hicieron match en Play N Seek.</p>
+            <p>Ya pueden platicar por el chat y armar su próxima partida.</p>
+            <a href="${urlMatches}">Ver mis matches</a>
+        `,
+    });
+}
