@@ -1,0 +1,62 @@
+# Crea o actualiza toda la infraestructura con Terraform.
+# Se ejecuta a mano: Actions > Deploy infra > Run workflow.
+#
+# Secretos necesarios:
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN
+#       Learner Lab > AWS Details. Cambian cada vez que se inicia el laboratorio.
+#   TF_API_TOKEN   token de usuario de HCP Terraform (guarda el state)
+#   APP_ENV_JSON   variables de BACKEND/.env en JSON, por ejemplo
+#                  {"MONGODB_URI":"...","JWT_SECRET":"...","EMAIL_USER":"..."}
+name: Deploy infra
+
+on:
+  workflow_dispatch:
+
+# Evita que un apply y un destroy corran al mismo tiempo sobre el mismo state.
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+
+jobs:
+  terraform-apply:
+    name: Terraform apply
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_REGION: us-east-1
+      # Terraform lee TF_VAR_<nombre> como var.<nombre>.
+      TF_VAR_app_env: ${{ secrets.APP_ENV_JSON }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Terraform y conectar con HCP Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform apply
+        run: terraform apply -input=false tfplan
+
+      - name: Resumen
+        run: |
+          IP=$(terraform output -raw public_ip)
+          {
+            echo "### Infraestructura lista"
+            echo ""
+            echo "- App: http://$IP (tarda de 5 a 10 minutos en instalarse si la EC2 es nueva)"
+            echo "- Elastic IP: \`$IP\`"
+            echo ""
+            echo "Si la IP cambió, actualiza el secreto \`EC2_HOST\` para que funcione el deploy."
+          } >> "$GITHUB_STEP_SUMMARY"

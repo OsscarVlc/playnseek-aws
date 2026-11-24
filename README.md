@@ -26,6 +26,8 @@ La infraestructura se crea con Terraform desde `infra/`:
 
 Un solo `apply` crea EC2, Elastic IP, volumen EBS para Dgraph, security group y el
 secreto con las variables de entorno, y deja la aplicación funcionando.
+El apply y el destroy también se lanzan desde GitHub Actions (**Deploy infra** y
+**Destroy infra**), con el state guardado en HCP Terraform.
 Instrucciones completas en [infra/README.md](infra/README.md).
 
 ## CI/CD

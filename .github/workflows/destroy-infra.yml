@@ -1,0 +1,45 @@
+# Destruye toda la infraestructura creada con Terraform.
+# Se ejecuta a mano y pide escribir "destroy" para confirmar.
+# Para conservar los datos de Dgraph, antes correr scripts/snapshot-data-volume.sh.
+name: Destroy infra
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Escribe "destroy" para confirmar'
+        required: true
+
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+
+jobs:
+  terraform-destroy:
+    name: Terraform destroy
+    if: ${{ inputs.confirm == 'destroy' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      AWS_REGION: us-east-1
+      # destroy también evalúa las variables, por eso necesita app_env.
+      TF_VAR_app_env: ${{ secrets.APP_ENV_JSON }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Terraform y conectar con HCP Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: terraform init -input=false
+
+      - name: Terraform destroy
+        run: terraform destroy -input=false -auto-approve
