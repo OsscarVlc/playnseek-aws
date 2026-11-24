@@ -10,6 +10,17 @@
 terraform {
   required_version = ">= 1.6"
 
+  # El state vive en HCP Terraform (Execution Mode: Local).
+  # Terraform se ejecuta en GitHub Actions o en CloudShell, pero el state
+  # queda guardado en HCP, así cualquier integrante puede aplicar cambios.
+  cloud {
+    organization = "oscar-vlc-iteso"
+
+    workspaces {
+      name = "playnseek-aws"
+    }
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -21,7 +32,7 @@ terraform {
 provider "aws" {
   region = var.aws_region
 
-  # Todos los recursos quedan etiquetadas para identificarlas en la consola.
+  # Todos los recursos quedan etiquetados para identificarlos en la consola.
   default_tags {
     tags = {
       Project   = var.project_name
