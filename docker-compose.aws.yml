@@ -1,0 +1,34 @@
+name: playnseek-aws
+
+services:
+  zero:
+    image: dgraph/dgraph:v25.3.8
+    command: dgraph zero --my=zero:5080
+    restart: "no"
+    volumes:
+      - type: bind
+        source: /data/dgraph/zero
+        target: /dgraph
+        bind:
+          create_host_path: false
+
+  alpha:
+    image: dgraph/dgraph:v25.3.8
+    command: >-
+      dgraph alpha
+      --my=alpha:7080
+      --zero=zero:5080
+      --security whitelist=0.0.0.0/0
+      --cache size-mb=512
+    restart: "no"
+    depends_on:
+      - zero
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:9080:9080"
+    volumes:
+      - type: bind
+        source: /data/dgraph/alpha
+        target: /dgraph
+        bind:
+          create_host_path: false

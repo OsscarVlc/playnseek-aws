@@ -87,3 +87,74 @@ export async function actualizarUsuarioEnDgraph(
         await txn.discard();
     }
 }
+
+// cambios lambda ---------------------------------------------------------------------------
+
+interface NodoUsuarioEncontrado {
+    uid: string;
+    'dgraph.type'?: string[];
+}
+
+interface ResultadoBusquedaUsuario {
+    usuarios?: NodoUsuarioEncontrado[];
+}
+
+/**
+ * Busca un usuario por mongo_id y lo crea únicamente si no existe.
+ * Devuelve su UID e indica si fue creado durante esta operación.
+ */
+export async function asegurarUsuarioEnDgraph(
+    mongoId: string,
+    nombre: string,
+): Promise<{ uid: string; creado: boolean }> {
+    const txn = dgraphClient.newTxn();
+
+    try {
+        const query = `
+            query buscar($mongoId: string) {
+                usuarios(func: eq(mongo_id, $mongoId)) {
+                    uid
+                    dgraph.type
+                }
+            }
+        `;
+
+        const respuesta = await txn.queryWithVars(query, { $mongoId: mongoId });
+        const datos = respuesta.getJson() as ResultadoBusquedaUsuario;
+        const usuarios = datos.usuarios ?? [];
+
+        if (usuarios.length > 1) {
+            throw new Error(`Existen varios nodos con mongo_id: ${mongoId}`);
+        }
+
+        const existente = usuarios[0];
+
+        if (existente) {
+            if (!existente['dgraph.type']?.includes('Usuario')) {
+                throw new Error(`El nodo con mongo_id ${mongoId} no es de tipo Usuario`);
+            }
+
+            return { uid: existente.uid, creado: false };
+        }
+
+        const mutacion = new dgraph.Mutation();
+        mutacion.setSetJson({
+            uid: '_:usuario',
+            'dgraph.type': 'Usuario',
+            mongo_id: mongoId,
+            nombre,
+        });
+        mutacion.setCommitNow(true);
+
+        const resultado = await txn.mutate(mutacion);
+        const uid = resultado.getUidsMap().get('usuario');
+
+        if (!uid) {
+            throw new Error(`Dgraph no devolvió el UID del usuario ${mongoId}`);
+        }
+
+        return { uid, creado: true };
+    } finally {
+        await txn.discard();
+    }
+}
