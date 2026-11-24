@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Primer arranque de la instancia de PlayNSeek (lo genera Terraform con templatefile).
+# Reutiliza los scripts de scripts/ que ya usábamos en el despliegue manual.
+# Log completo: /var/log/playnseek-setup.log
+set -euxo pipefail
+exec > >(tee -a /var/log/playnseek-setup.log) 2>&1
+
+APP_USER="ec2-user"
+APP_HOME="/home/$APP_USER"
+REPO_DIR="$APP_HOME/playnseek-aws"
+VOLUME_ID="${volume_id}"
+export AWS_REGION="${aws_region}"
+
+# 1. Clonar el repositorio ----------------------------------------------------
+dnf install -y git
+if [[ ! -d "$REPO_DIR/.git" ]]; then
+  sudo -u "$APP_USER" git clone --branch "${repo_branch}" "${repo_url}" "$REPO_DIR"
+fi
+
+# 2. Instalar Node.js, Docker, Docker Compose y Nginx ---------------------------
+bash "$REPO_DIR/scripts/setup-server.sh"
+
+# 3. Volumen EBS de Dgraph -----------------------------------------------------
+# Terraform conecta el volumen después de crear la instancia, así que esperamos.
+# En instancias Nitro el disco aparece como NVMe; se identifica por su serial.
+DEVICE_LINK="/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_$${VOLUME_ID//-/}"
+for _ in $(seq 1 60); do
+  [[ -e "$DEVICE_LINK" ]] && break
+  sleep 5
+done
+DEVICE="$(readlink -f "$DEVICE_LINK")"
+test -b "$DEVICE"
+
+# Solo se formatea si el volumen está vacío (volumen nuevo, no un snapshot).
+if [[ -z "$(blkid -s TYPE -o value "$DEVICE" || true)" ]]; then
+  mkfs -t xfs "$DEVICE"
+fi
+
+VOLUME_UUID="$(blkid -s UUID -o value "$DEVICE")"
+bash "$REPO_DIR/scripts/mount-data-volume.sh" "$VOLUME_UUID"
+
+# 4. Variables de entorno desde Secrets Manager --------------------------------
+aws secretsmanager get-secret-value \
+  --region "$AWS_REGION" \
+  --secret-id "${secret_id}" \
+  --query SecretString --output text \
+  | python3 -c 'import json,sys; [print(f"{k}={v}") for k,v in json.load(sys.stdin).items()]' \
+  > "$REPO_DIR/BACKEND/.env"
+chown "$APP_USER:$APP_USER" "$REPO_DIR/BACKEND/.env"
+chmod 600 "$REPO_DIR/BACKEND/.env"
+
+# 5. Instalar dependencias y compilar ------------------------------------------
+sudo -iu "$APP_USER" bash -c "cd '$REPO_DIR/BACKEND' && npm ci && npm run build"
+
+# 6. Dgraph como servicio y espera a que esté sano -----------------------------
+bash "$REPO_DIR/scripts/setup-dgraph-service.sh"
+for _ in $(seq 1 36); do
+  curl -sf http://127.0.0.1:8080/health && break
+  sleep 5
+done
+
+# 7. Backend como servicio y Nginx como proxy ----------------------------------
+sudo -iu "$APP_USER" bash "$REPO_DIR/scripts/setup-app-service.sh"
+bash "$REPO_DIR/scripts/setup-nginx.sh" "${public_host}"
+
+echo "PlayNSeek listo en http://${public_host}"

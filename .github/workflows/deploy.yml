@@ -1,0 +1,64 @@
+# Despliegue continuo: al integrar código en main se ejecutan las pruebas
+# y, si pasan, se actualiza la app en EC2 por SSH.
+#
+# Secretos necesarios en GitHub (Settings > Secrets and variables > Actions):
+#   EC2_HOST     Elastic IP (output public_ip de Terraform)
+#   EC2_SSH_KEY  contenido de labsuser.pem del Learner Lab
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # permite lanzarlo a mano desde la pestaña Actions
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Desplegar en EC2
+    needs: ci # solo despliega si lint, build y pruebas pasaron
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Preparar llave SSH
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Actualizar código, compilar y reiniciar
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          ssh -i ~/.ssh/deploy_key ec2-user@"$EC2_HOST" bash -s <<'EOF'
+          set -euo pipefail
+          cd ~/playnseek-aws
+          git fetch origin main
+          git checkout -B main origin/main
+          cd BACKEND
+          npm ci
+          npm run build
+          sudo systemctl restart playnseek-app.service
+          EOF
+
+      - name: Verificar que la app responde
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          for i in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://$EC2_HOST/" || true)
+            echo "Intento $i: HTTP $code"
+            if [[ "$code" =~ ^[23] ]]; then exit 0; fi
+            sleep 5
+          done
+          echo "La app no respondió después del despliegue" >&2
+          exit 1
