@@ -27,3 +27,13 @@ output "ssh_command" {
   description = "Conexión SSH (llave labsuser.pem del Learner Lab)"
   value       = "ssh -i labsuser.pem ec2-user@${aws_eip.app.public_ip}"
 }
+
+output "sns_topic_matches" {
+  description = "Topic de SNS donde la app publica los matches"
+  value       = aws_sns_topic.matches.arn
+}
+
+output "lambda_notificar_match" {
+  description = "Lambda que manda los correos de match"
+  value       = aws_lambda_function.notificar_match.function_name
+}

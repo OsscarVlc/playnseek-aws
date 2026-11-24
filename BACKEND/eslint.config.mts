@@ -9,7 +9,7 @@ import { defineConfig } from "eslint/config";
 export default defineConfig([
 
   {
-    ignores: ['dist/**', 'node_modules/**', 'jest.config.js']
+    ignores: ['dist/**', 'dist-lambda/**', 'node_modules/**', 'jest.config.js']
   },
 
   {

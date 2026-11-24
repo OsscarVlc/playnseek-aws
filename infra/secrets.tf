@@ -10,6 +10,7 @@ locals {
     APP_URL        = local.app_url
     DGRAPH_ADDRESS = "localhost:9080"
     PORT           = "3000"
+    SNS_TOPIC_ARN  = aws_sns_topic.matches.arn
   })
 }
 
