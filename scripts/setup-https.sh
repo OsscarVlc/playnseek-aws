@@ -42,6 +42,22 @@ if [[ "$DOMAIN" =~ ^[0-9.]+$ ]]; then
   exit 0
 fi
 
+# Let's Encrypt valida entrando a http://<dominio>, así que el dominio debe apuntar
+# a esta instancia. En una EC2 recién creada la Elastic IP se asocia unos segundos
+# después de arrancar: se espera hasta 5 minutos a que la IP pública coincida.
+IP_ESPERADA="$(grep -oE '^[0-9]+-[0-9]+-[0-9]+-[0-9]+' <<< "$DOMAIN" | tr '-' '.' || true)"
+if [[ -n "$IP_ESPERADA" ]]; then
+  for _ in $(seq 1 30); do
+    IMDS_TOKEN="$(curl -sf -X PUT http://169.254.169.254/latest/api/token \
+      -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' || true)"
+    IP_ACTUAL="$(curl -sf -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+      http://169.254.169.254/latest/meta-data/public-ipv4 || true)"
+    [[ "$IP_ACTUAL" == "$IP_ESPERADA" ]] && break
+    echo "Esperando a que la Elastic IP $IP_ESPERADA se asocie (actual: ${IP_ACTUAL:-ninguna})..."
+    sleep 10
+  done
+fi
+
 # 2. Instalar certbot y el plugin de Nginx ------------------------------------------
 # AL2023 (2023.3 o posterior) trae certbot y python3-certbot-nginx en su repositorio
 # y el timer certbot-renew.timer. Si no están disponibles, se usa pip en un venv
