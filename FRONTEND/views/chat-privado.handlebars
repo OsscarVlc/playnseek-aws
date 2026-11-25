@@ -2,31 +2,37 @@
     <div class="alert alert-danger">{{error}}</div>
     <a href="/match" class="btn btn-secondary">Volver a match</a>
 {{else}}
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-body p-4">
-                    <h4 class="mb-3">
-                        {{#if otroUsuario.foto_perfil}}
-                            <img src="{{otroUsuario.foto_perfil}}" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">
-                        {{else}}
-                            <i class="bi bi-person-circle me-2"></i>
-                        {{/if}}
-                        {{otroUsuario.nombre}}
-                    </h4>
+    {{!-- Los id (mensajes-privado, form-mensaje-privado, input-mensaje-privado) son los
+          que usa chatPrivado.js; el diseño vive en /styles/chat.css --}}
+    <section class="pns-chat" aria-label="Chat privado con {{otroUsuario.nombre}}">
+        <header class="pns-chat__header">
+            <a href="/match" class="pns-chat__back" aria-label="Volver a match" title="Volver a match">
+                <i class="bi bi-arrow-left"></i>
+            </a>
 
-                    <div id="mensajes-privado" class="border rounded p-3 mb-3" style="height: 300px; overflow-y: auto;"></div>
-
-                    <form id="form-mensaje-privado" class="d-flex gap-2">
-                        <input type="text" id="input-mensaje-privado" class="form-control" placeholder="Escribe un mensaje...">
-                        <button type="submit" class="btn btn-primary">Enviar</button>
-                    </form>
-
-                    <a href="/match" class="btn btn-outline-secondary mt-3">← Volver a match</a>
-                </div>
+            <div class="pns-chat__avatar">
+                {{#if otroUsuario.foto_perfil}}
+                    <img src="{{fotoPerfil otroUsuario.foto_perfil}}" alt="Foto de {{otroUsuario.nombre}}">
+                {{else}}
+                    <span class="pns-chat__avatar-vacio"><i class="bi bi-person-fill"></i></span>
+                {{/if}}
             </div>
-        </div>
-    </div>
+
+            <div class="pns-chat__who">
+                <h1 class="pns-chat__name">{{otroUsuario.nombre}}</h1>
+                <span class="pns-chat__status"><i class="bi bi-patch-check-fill"></i> Match confirmado</span>
+            </div>
+        </header>
+
+        <div id="mensajes-privado" class="pns-chat__mensajes" aria-live="polite"></div>
+
+        <form id="form-mensaje-privado" class="pns-chat__form" autocomplete="off">
+            <input type="text" id="input-mensaje-privado" class="pns-chat__input" placeholder="Escribe un mensaje..." maxlength="1000" aria-label="Mensaje">
+            <button type="submit" class="pns-chat__enviar" aria-label="Enviar mensaje" title="Enviar">
+                <i class="bi bi-send-fill"></i>
+            </button>
+        </form>
+    </section>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/chatPrivado.js" data-token="{{token}}" data-otro-usuario-id="{{otroUsuarioId}}" data-mi-usuario-id="{{miUsuarioId}}"></script>
