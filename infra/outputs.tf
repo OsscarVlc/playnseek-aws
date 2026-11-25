@@ -3,6 +3,11 @@ output "app_url" {
   value       = local.app_url
 }
 
+output "public_domain" {
+  description = "Dominio sslip.io con certificado de Let's Encrypt"
+  value       = local.public_domain
+}
+
 output "public_ip" {
   description = "Elastic IP (agregarla a MongoDB Atlas y al secreto EC2_HOST de GitHub)"
   value       = aws_eip.app.public_ip
@@ -36,4 +41,9 @@ output "sns_topic_matches" {
 output "lambda_notificar_match" {
   description = "Lambda que manda los correos de match"
   value       = aws_lambda_function.notificar_match.function_name
+}
+
+output "s3_bucket_perfiles" {
+  description = "Bucket privado con las fotos de perfil"
+  value       = aws_s3_bucket.perfiles.bucket
 }

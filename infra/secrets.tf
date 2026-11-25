@@ -3,7 +3,12 @@
 # credencial queda en el repositorio ni en el user_data.
 
 locals {
-  app_url = coalesce(var.app_url, "http://${aws_eip.app.public_ip}")
+  # Dominio gratuito que resuelve a la Elastic IP (34.197.94.85 -> 34-197-94-85.sslip.io).
+  # Let's Encrypt no emite certificados para IPs sueltas, por eso se necesita un nombre.
+  public_domain = "${replace(aws_eip.app.public_ip, ".", "-")}.sslip.io"
+
+  # URL pública con HTTPS (la usan los enlaces de los correos y la Lambda de match).
+  app_url = coalesce(var.app_url, "https://${local.public_domain}")
 
   # Valores calculados por Terraform; se combinan con los de terraform.tfvars.
   app_env = merge(var.app_env, {
@@ -11,6 +16,8 @@ locals {
     DGRAPH_ADDRESS = "localhost:9080"
     PORT           = "3000"
     SNS_TOPIC_ARN  = aws_sns_topic.matches.arn
+    S3_BUCKET      = aws_s3_bucket.perfiles.bucket
+    AWS_REGION     = var.aws_region
   })
 }
 
