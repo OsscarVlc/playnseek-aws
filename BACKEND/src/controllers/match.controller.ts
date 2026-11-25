@@ -4,6 +4,7 @@ import { HttpStatus } from '../types/https-status';
 import { obtenerMatchesDeUsuario } from '../database/dgraph/queries/match.queries';
 import { User } from '../database/mongo/models/user.model';
 import { eliminarMatchEntreUsuarios } from '../database/dgraph/queries/match.queries';
+import { urlFotoPerfil } from '../utils/fotoPerfil';
 
 export async function listarMisMatches(req: AuthRequest, res: Response) {
     try {
@@ -20,7 +21,8 @@ export async function listarMisMatches(req: AuthRequest, res: Response) {
             .select('foto_perfil')
             .lean();
 
-        const fotosPorId = new Map(perfiles.map((p) => [p._id.toString(), p.foto_perfil]));
+        // lean() no aplica getters, por eso la key de S3 se convierte a /media/... aquí
+        const fotosPorId = new Map(perfiles.map((p) => [p._id.toString(), urlFotoPerfil(p.foto_perfil)]));
 
         const matchesEnriquecidos = matches.map((m) => ({
             fecha: m.fecha,

@@ -5,6 +5,7 @@ import { Solicitud } from '../database/mongo/models/solicitud.model';
 import { EstadoSolicitud } from '../types/solicitud.types';
 import { obtenerRecomendacionesDgraph } from '../database/dgraph/queries/recomendacion.queries';
 import { User } from '../database/mongo/models/user.model';
+import { urlFotoPerfil } from '../utils/fotoPerfil';
 
 export async function obtenerRecomendaciones(req: AuthRequest, res: Response) {
     try {
@@ -43,7 +44,10 @@ export async function obtenerRecomendaciones(req: AuthRequest, res: Response) {
             .select('nombre foto_perfil idiomas plataformas modo_juego')
             .lean();
 
-        const perfilesPorId = new Map(perfiles.map((p) => [p._id.toString(), p]));
+        // lean() no aplica getters, por eso la key de S3 se convierte a /media/... aquí
+        const perfilesPorId = new Map(
+            perfiles.map((p) => [p._id.toString(), { ...p, foto_perfil: urlFotoPerfil(p.foto_perfil) }]),
+        );
 
         const recomendaciones = candidatosFiltrados
             .filter((c) => perfilesPorId.has(c.mongo_id))
