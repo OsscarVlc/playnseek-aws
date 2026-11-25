@@ -9,6 +9,7 @@ import reporteRoutes from './reporte';
 import matchRoutes from './match';
 import solicitudRoutes from './solicitud';
 import recomendacionRoutes from './recomendacion';
+import mediaRoutes from './media';
 
 const router = Router(); // usamos el servicio de rutas de express
 
@@ -31,5 +32,7 @@ router.use('/match', matchRoutes);
 router.use('/solicitud', solicitudRoutes);
 
 router.use('/recomendacion', recomendacionRoutes);
+
+router.use('/media', mediaRoutes);
 
 export default router;
