@@ -15,6 +15,14 @@ function abrirModalReportar(reportadoId, grupoId) {
     modalReportar.show();
 }
 
+// Botones "Reportar" de la lista de integrantes de un grupo (grupo-detalle).
+// Antes no tenían ningún listener y no hacían nada al darles clic.
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-reportar');
+    if (!btn) return;
+    abrirModalReportar(btn.dataset.id, btn.dataset.grupoId);
+});
+
 formReportar.addEventListener('submit', async (e) => {
     e.preventDefault();
 
