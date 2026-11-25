@@ -105,7 +105,7 @@ resource "aws_instance" "app" {
     repo_branch = var.repo_branch
     secret_id   = aws_secretsmanager_secret.app_env.id
     volume_id   = aws_ebs_volume.dgraph_data.id
-    public_host = aws_eip.app.public_ip
+    public_host = local.public_domain
   })
 
   # Si cambia el script, se recrea la instancia (el volumen de datos se conserva).

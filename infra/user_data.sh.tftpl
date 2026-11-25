@@ -63,4 +63,10 @@ done
 sudo -iu "$APP_USER" bash "$REPO_DIR/scripts/setup-app-service.sh"
 bash "$REPO_DIR/scripts/setup-nginx.sh" "${public_host}"
 
-echo "PlayNSeek listo en http://${public_host}"
+# 8. HTTPS con Let's Encrypt ----------------------------------------------------
+# Si falla (por ejemplo, límite semanal de Let's Encrypt) la app sigue en HTTP
+# y el siguiente Deploy vuelve a intentarlo con el mismo script.
+bash "$REPO_DIR/scripts/setup-https.sh" "${public_host}" \
+  || echo "No se pudo activar HTTPS; se reintentará en el siguiente Deploy"
+
+echo "PlayNSeek listo en https://${public_host}"
