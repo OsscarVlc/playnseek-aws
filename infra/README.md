@@ -16,6 +16,7 @@ HCP Terraform.
 | Secreto | `secrets.tf` | Variables de `BACKEND/.env` en Secrets Manager |
 | Topic SNS `playnseek-matches` | `sns.tf` | La app publica aquí cada match (flujo 2) |
 | Lambda `playnseek-notificar-match` | `lambda.tf` | Suscrita al topic; manda el correo de match a los dos usuarios |
+| Bucket S3 `playnseek-perfiles-*` | `s3.tf` | Fotos de perfil (flujo 3). Privado, cifrado y con `force_destroy` |
 
 El código de la Lambda está en `BACKEND/src/lambdas/notificarMatch.handler.ts` y se
 empaqueta con `npm run build:lambda` (esbuild). Los workflows **Deploy infra** y
@@ -27,6 +28,30 @@ empaqueta con `npm run build:lambda` (esbuild). Los workflows **Deploy infra** y
 escribe `.env` desde Secrets Manager, compila y levanta Dgraph, el backend y Nginx.
 
 Como Learner Lab no permite crear roles, se usan `LabInstanceProfile` y `LabRole`.
+
+## Fotos de perfil en S3
+
+La app sube cada foto a `perfiles/<usuarioId>/<uuid>.<ext>` y guarda esa key en
+MongoDB. El bucket no es público: `GET /media/perfiles/...` genera una URL
+prefirmada de 10 minutos y redirige a ella. Terraform pasa el nombre del bucket a la
+app en `S3_BUCKET` (`local.app_env`). Como las fotos viven en S3 y no en la EC2,
+siguen ahí aunque se recree la instancia.
+
+## HTTPS
+
+La URL pública es `https://<Elastic IP con guiones>.sslip.io` (hoy
+`https://34-197-94-85.sslip.io`): sslip.io resuelve ese nombre a la IP y Let's
+Encrypt sí emite certificados para él (no los emite para una IP sola).
+
+- `scripts/setup-https.sh` instala certbot, pide el certificado con el plugin de
+  Nginx, deja la redirección HTTP→HTTPS y activa la renovación automática
+  (`certbot-renew.timer`). Es idempotente.
+- Lo ejecutan el `user_data` (instancias nuevas) y el workflow **Deploy** (instancia
+  actual). Los certificados se guardan en el volumen EBS, así que al recrear la EC2
+  no se vuelve a pedir otro.
+- Socket.io funciona sobre `wss://`: Nginx termina TLS y pasa la conexión al
+  backend con los encabezados `Upgrade`/`Connection`.
+- Para fijar otra URL, definir la variable `app_url`.
 
 ## Dónde vive el state
 
@@ -56,6 +81,9 @@ Ejemplo de `APP_ENV_JSON` (APP_URL, DGRAPH_ADDRESS y PORT los calcula Terraform)
 ```json
 {"MONGODB_URI":"mongodb+srv://...","JWT_SECRET":"...","RAWG_KEY":"...","EMAIL_USER":"...","EMAIL_PASS":"...","CLOUDINARY_CLOUD_NAME":"...","CLOUDINARY_API_KEY":"...","CLOUDINARY_API_SECRET":"..."}
 ```
+
+Cloudinary sigue en uso para las imágenes de los posts de grupo; las fotos de perfil
+ya van a S3. `S3_BUCKET` y `AWS_REGION` también los calcula Terraform.
 
 ## Crear o actualizar la infraestructura
 
