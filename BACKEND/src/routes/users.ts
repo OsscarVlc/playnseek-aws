@@ -18,7 +18,7 @@ import {
 import { authMiddleware } from '../middlewares/auth.middleware';
 import { validatePassword } from '../middlewares/validatePassword.middleware';
 import { requireAdmin } from '../middlewares/allowRoles';
-import { upload } from '../middlewares/upload.middleware';
+import { recibirFotoPerfil } from '../middlewares/upload.middleware';
 
 const router = Router();
 
@@ -77,15 +77,23 @@ router.post('/login', loginUser);
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/User'
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               foto_perfil:
+ *                 type: string
+ *                 format: binary
+ *                 description: Imagen JPG, PNG o WEBP de hasta 15 MB. Se guarda en S3.
  *     responses:
  *       200:
  *         description: Perfil actualizado correctamente.
  *       400:
- *         description: Se intentó modificar el rol.
+ *         description: Se intentó modificar el rol, o la imagen no es JPG, PNG o WEBP, o supera 15 MB.
  *       401:
  *         description: No autenticado.
  */
-router.patch('/actualizar', authMiddleware, upload.single('foto_perfil'), actualizarUsuario);
+router.patch('/actualizar', authMiddleware, recibirFotoPerfil, actualizarUsuario);
 
 /**
  * @swagger

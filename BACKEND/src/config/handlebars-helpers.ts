@@ -1,3 +1,5 @@
+import { urlFotoPerfil } from '../utils/fotoPerfil';
+
 export const handlebarsHelpers = {
     colorPlataforma: function (plataforma: string) {
         const colores: Record<string, string> = {
@@ -29,5 +31,10 @@ export const handlebarsHelpers = {
 
     esModeradorOAdmin: function (rol: string) {
         return rol === 'administrador' || rol === 'moderador';
+    },
+
+    // las vistas usan .lean() (sin getters de mongoose), por eso la key de S3 se convierte aquí
+    fotoPerfil: function (valor: string | undefined) {
+        return urlFotoPerfil(valor) || '';
     },
 };

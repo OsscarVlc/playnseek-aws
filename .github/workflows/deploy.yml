@@ -49,14 +49,19 @@ jobs:
           npm run build
           bash ../scripts/refresh-env.sh
           sudo systemctl restart playnseek-app.service
+          # HTTPS idempotente: si el certificado ya existe no hace nada;
+          # el dominio se toma de APP_URL en .env (lo calcula Terraform)
+          bash ../scripts/setup-https.sh
           EOF
 
-      - name: Verificar que la app responde
+      - name: Verificar que la app responde por HTTPS
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
+          # 34.197.94.85 -> https://34-197-94-85.sslip.io (mismo cálculo que infra/secrets.tf)
+          APP_URL="https://${EC2_HOST//./-}.sslip.io"
           for i in $(seq 1 12); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' "http://$EC2_HOST/" || true)
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL/" || true)
             echo "Intento $i: HTTP $code"
             if [[ "$code" =~ ^[23] ]]; then exit 0; fi
             sleep 5

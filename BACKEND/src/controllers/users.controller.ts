@@ -8,7 +8,7 @@ import { IUser } from '../types/user.types';
 import { crearUsuarioEnDgraph } from '../database/dgraph/queries/user.queries'; // para ponerlo en dgraph
 import { sincronizarUsuarioConDgraph } from '../services/dgraphSync.service';
 import { enviarCorreoConfirmacion } from '../services/email.service';
-import { subirImagenACloudinary } from '../services/cloudinary.service';
+import { ArchivoInvalidoError, eliminarObjeto, esKeyDePerfilValida, subirFotoPerfil } from '../services/s3.service';
 import { confirmarCuentaCore } from '../services/confirmacion.service';
 import { Types } from 'mongoose';
 import { sincronizarJuegosUsuario } from '../database/dgraph/queries/juego.queries';
@@ -29,6 +29,9 @@ const CAMPOS_USUARIO_SIN_CONTRASENA = '-contrasena_hash';
  */
 function manejarErrorControlador(err: unknown, res: Response) {
     console.log(err);
+    if (err instanceof ArchivoInvalidoError) {
+        return res.status(HttpStatus.BAD_REQUEST).json({ message: err.message });
+    }
     if ((err as Error).name === 'CastError') {
         return res.status(HttpStatus.BAD_REQUEST).json({ message: MSG_ID_INVALIDO });
     }
@@ -88,6 +91,27 @@ async function sincronizarJuegosDelUsuarioEnDgraph(
             `usuario ${usuarioId} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`,
             err,
         );
+    }
+}
+
+/**
+ * Sube la nueva foto de perfil a S3 y devuelve su key junto con la key anterior
+ * (para borrarla después de guardar el cambio en MongoDB).
+ * Se lee con lean() para obtener la key cruda, sin el getter que la convierte en /media/...
+ */
+async function procesarFotoPerfil(usuarioId: string, buffer: Buffer) {
+    const actual = await User.findById(usuarioId).select('foto_perfil').lean();
+    const keyNueva = await subirFotoPerfil(usuarioId, buffer);
+    return { keyNueva, keyAnterior: actual?.foto_perfil };
+}
+
+/**
+ * Borra de S3 la foto que se acaba de reemplazar, sin bloquear la respuesta.
+ * esKeyDePerfilValida descarta URLs antiguas de Cloudinary (no viven en S3).
+ */
+function borrarFotoAnterior(key: string | undefined) {
+    if (esKeyDePerfilValida(key)) {
+        void eliminarObjeto(key);
     }
 }
 
@@ -236,10 +260,14 @@ export async function actualizarUsuario(req: AuthRequest, res: Response) {
             }
         }
 
-        // si viene un archivo (gracias a upload.single('foto_perfil') en la ruta)
-        // lo subimos a cloudinary y guardamos la url resultante
+        // si viene un archivo (gracias a recibirFotoPerfil en la ruta) lo subimos a S3
+        // y en MongoDB guardamos solo la key del objeto, no una URL: el bucket es privado
+        // y la URL de lectura se genera al mostrarla (GET /media/perfiles/...)
+        let keyFotoAnterior: string | undefined;
         if (req.file) {
-            userUpdate.foto_perfil = await subirImagenACloudinary(req.file.buffer);
+            const { keyNueva, keyAnterior } = await procesarFotoPerfil(usuarioAuth._id.toString(), req.file.buffer);
+            userUpdate.foto_perfil = keyNueva;
+            keyFotoAnterior = keyAnterior;
         }
 
         const usuarioActualizado = await User.findByIdAndUpdate(usuarioAuth._id, userUpdate, { new: true }).select(
@@ -255,6 +283,9 @@ export async function actualizarUsuario(req: AuthRequest, res: Response) {
         // toda la sincronizacion con dgraph (datos basicos, idiomas, plataformas) vive
         // en dgraphSync.service.ts, aqui solo se llama una vez con lo que cambio
         await sincronizarUsuarioConDgraph(usuarioAuth._id.toString(), userUpdate);
+
+        // la foto anterior ya no se usa
+        borrarFotoAnterior(keyFotoAnterior);
 
         return res.json(usuarioActualizado);
     } catch (err) {

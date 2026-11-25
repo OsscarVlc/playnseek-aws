@@ -30,7 +30,9 @@ async function cargarRecomendaciones() {
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div>
-                            <i class="bi bi-person-circle me-2" style="font-size: 32px;"></i>
+                            ${candidato.foto_perfil
+                                ? `<img src="${candidato.foto_perfil}" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">`
+                                : `<i class="bi bi-person-circle me-2" style="font-size: 32px;"></i>`}
                             <strong>${candidato.nombre}</strong>
                         </div>
                         <button class="btn btn-sm btn-primary btn-enviar-solicitud" data-id="${candidato.mongo_id}">
@@ -69,6 +71,7 @@ async function cargarRecomendaciones() {
 
             if (data.match) {
                 alert('¡Es un match!');
+                btn.textContent = '¡Match!';
                 cargarMatches();
             } else {
                 btn.textContent = 'Solicitud enviada';
@@ -166,7 +169,7 @@ async function cargarMatches() {
                             : `<i class="bi bi-person-circle me-2" style="font-size: 32px;"></i>`}
                         <strong>${match.companero.nombre}</strong>
                     </div>
-                    <div class="opciones-match mt-2 d-flex gap-2" style="display: none;">
+                    <div class="opciones-match mt-2 gap-2 d-none">
                         <a href="/chat/${match.companero.mongo_id}" class="btn btn-sm btn-primary">Chatear</a>
                         <button class="btn btn-sm btn-outline-danger" onclick="abrirModalReportar('${match.companero.mongo_id}')">Reportar</button>
                         <button class="btn btn-sm btn-outline-secondary btn-eliminar-amigo" data-id="${match.companero.mongo_id}">Eliminar de amigos</button>
@@ -181,8 +184,11 @@ async function cargarMatches() {
     document.querySelectorAll('.match-card').forEach((card) => {
         card.addEventListener('click', (e) => {
             if (e.target.closest('a, button')) return;
+            // d-flex de Bootstrap usa !important y le ganaba al style="display: none",
+            // por eso las opciones nunca se ocultaban; ahora se alternan clases
             const opciones = card.querySelector('.opciones-match');
-            opciones.style.display = opciones.style.display === 'none' ? 'flex' : 'none';
+            opciones.classList.toggle('d-none');
+            opciones.classList.toggle('d-flex');
         });
     });
 

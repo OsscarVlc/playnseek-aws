@@ -53,7 +53,7 @@ variable "data_snapshot_id" {
 }
 
 variable "app_url" {
-  description = "URL pública de la app. null = http://<Elastic IP>. Cambiar al configurar HTTPS"
+  description = "URL pública de la app. null = https://<Elastic IP con guiones>.sslip.io (hoy https://34-197-94-85.sslip.io)"
   type        = string
   default     = null
 }

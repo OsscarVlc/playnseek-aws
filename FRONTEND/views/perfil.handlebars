@@ -4,7 +4,7 @@
             <div class="card-body p-4 text-center">
                 <div id="preview-foto">
                     {{#if usuario.foto_perfil}}
-                        <img src="{{usuario.foto_perfil}}" alt="Foto de perfil" class="rounded-circle" width="120" height="120" style="object-fit: cover;">
+                        <img src="{{fotoPerfil usuario.foto_perfil}}" alt="Foto de perfil" class="rounded-circle" width="120" height="120" style="object-fit: cover;">
                     {{else}}
                         <i class="bi bi-person-circle" style="font-size: 120px; color: #ccc;"></i>
                     {{/if}}

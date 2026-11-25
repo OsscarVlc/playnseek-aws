@@ -40,7 +40,9 @@ formLogin.addEventListener('submit', async (e) => {
             return;
         }
 
-        document.cookie = `token=${data.token}; path=/; max-age=3600`;
+        // con HTTPS la cookie se marca Secure para que nunca viaje por HTTP
+        const cookieSegura = location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = `token=${data.token}; path=/; max-age=3600; SameSite=Lax${cookieSegura}`;
         window.location.href = '/perfil';
 
     } catch (err) {

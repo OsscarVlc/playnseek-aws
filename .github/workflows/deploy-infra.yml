@@ -65,10 +65,13 @@ jobs:
       - name: Resumen
         run: |
           IP=$(terraform output -raw public_ip)
+          URL=$(terraform output -raw app_url)
+          BUCKET=$(terraform output -raw s3_bucket_perfiles)
           {
             echo "### Infraestructura lista"
             echo ""
-            echo "- App: http://$IP (tarda de 5 a 10 minutos en instalarse si la EC2 es nueva)"
+            echo "- App: $URL (tarda de 5 a 10 minutos en instalarse si la EC2 es nueva)"
+            echo "- Bucket de fotos: \`$BUCKET\`"
             echo "- Elastic IP: \`$IP\`"
             echo ""
             echo "Si la IP cambió, actualiza el secreto \`EC2_HOST\` para que funcione el deploy."
