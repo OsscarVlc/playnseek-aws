@@ -5,6 +5,7 @@ import { Solicitud } from '../database/mongo/models/solicitud.model';
 import { EstadoSolicitud } from '../types/solicitud.types';
 import { crearMatchEnDgraph } from '../database/dgraph/queries/match.queries';
 import { notificarMatch } from '../services/notificaciones.service';
+import { incrementarMetrica } from '../services/metricas.service';
 
 const MSG_NO_AUTENTICADO = 'No autenticado';
 const MSG_ID_INVALIDO = 'Id Invalido';
@@ -67,6 +68,9 @@ export async function enviarSolicitud(req: AuthRequest, res: Response) {
             solicitudInversa.estado = EstadoSolicitud.ACEPTADA;
             solicitudInversa.fecha_respuesta = new Date();
             await solicitudInversa.save();
+
+            // La solicitud mutua ya quedó aceptada en Mongo.
+            incrementarMetrica('MatchesCreados'); 
 
             try {
                 await crearMatchEnDgraph(deUsuario, aUsuario);
@@ -146,6 +150,7 @@ export async function responderSolicitud(req: AuthRequest, res: Response) {
         await solicitud.save();
 
         if (respuesta === 'aceptar') {
+            incrementarMetrica('MatchesCreados');
             try {
                 await crearMatchEnDgraph(solicitud.de_usuario.toString(), solicitud.a_usuario.toString());
             } catch (err) {

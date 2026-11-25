@@ -3,6 +3,7 @@ import { sincronizarIdiomasUsuario } from '../database/dgraph/queries/idioma.que
 import { sincronizarPlataformasUsuario } from '../database/dgraph/queries/plataforma.queries';
 import { sincronizarJuegosUsuario } from '../database/dgraph/queries/juego.queries';
 import { IUser } from '../types/user.types';
+import { incrementarMetrica } from './metricas.service';
 
 /**
  * Construye los campos básicos que se actualizarán en Dgraph.
@@ -30,6 +31,7 @@ export async function sincronizarUsuarioConDgraph(mongoId: string, userUpdate: P
             await actualizarUsuarioEnDgraph(mongoId, camposDgraph); // si los hay los mandamos a la funcion
         }
     } catch (err) {
+        incrementarMetrica('FallosSyncUsuarioDgraph');
         console.error(`usuario ${mongoId} actualizado en mongo pero FALLO la sincronizacion con dgraph`, err);
     }
     // -----------------------------------------------------------------------------------------------------------------
@@ -40,6 +42,7 @@ export async function sincronizarUsuarioConDgraph(mongoId: string, userUpdate: P
         try {
             await sincronizarIdiomasUsuario(mongoId, userUpdate.idiomas);
         } catch (err) {
+            incrementarMetrica('FallosSyncUsuarioDgraph');
             console.error(
                 `usuario ${mongoId} actualizado en mongo pero FALLO la sincronizacion de idiomas con dgraph`,
                 err,
@@ -54,6 +57,7 @@ export async function sincronizarUsuarioConDgraph(mongoId: string, userUpdate: P
             const nombresPlataformas = userUpdate.plataformas.map((p) => p.nombre); // solo nos interesa el nombre no el gamertag
             await sincronizarPlataformasUsuario(mongoId, nombresPlataformas);
         } catch (err) {
+            incrementarMetrica('FallosSyncUsuarioDgraph');
             console.error(
                 `usuario ${mongoId} actualizado en mongo pero FALLO la sincronizacion de plataformas con dgraph`,
                 err,
@@ -66,6 +70,7 @@ export async function sincronizarUsuarioConDgraph(mongoId: string, userUpdate: P
             const idsJuegos = userUpdate.juegos_activos.map((j) => j.juego_id.toString());
             await sincronizarJuegosUsuario(mongoId, idsJuegos);
         } catch (err) {
+            incrementarMetrica('FallosSyncUsuarioDgraph');
             console.error(
                 `usuario ${mongoId} actualizado en mongo pero FALLO la sincronizacion de juegos con dgraph`,
                 err,
