@@ -1,12 +1,14 @@
 // modelos
 import { Schema, model } from 'mongoose';
 import { IUser, Sexo, ModoDeJuego, Idioma, Plataforma, Roles } from '../../../types/user.types';
+import { urlFotoPerfil } from '../../../utils/fotoPerfil';
 
 //En este archivo se define el modelo de usuario,
 // que es la estructura de los documentos que se guardaran en la coleccion de usuarios en MongoDB
 
 //<Iuser> es un generico que le dice a mongoose que el modelo de usuario debe cumplir con la interfaz IUse
-const userSchema = new Schema<IUser>({
+const userSchema = new Schema<IUser>(
+    {
     nombre: { type: String, required: true },
     edad: { type: Number },
     sexo: { type: String, enum: Object.values(Sexo) }, // enum: Object.values(Sexo) asegura que solo se puedan guardar los valores definidos en el enum Sexo
@@ -15,7 +17,8 @@ const userSchema = new Schema<IUser>({
     contrasena_hash: { type: String, required: true },
     rol: { type: String, default: Roles.USER, enum: Object.values(Roles) },
     isActive: { type: Boolean, default: true },
-    foto_perfil: { type: String },
+    // en MongoDB se guarda la key de S3; el getter la convierte en /media/... al leerla
+    foto_perfil: { type: String, get: urlFotoPerfil },
     zona_horaria: { type: String },
     horario_juego: { type: [String] },
     disponibilidad: { type: [String] },
@@ -35,7 +38,14 @@ const userSchema = new Schema<IUser>({
         },
     ],
     juegos_pasados: { type: [Schema.Types.ObjectId], ref: 'Juego' },
-});
+    },
+    {
+        // aplica el getter de foto_perfil al convertir a JSON (res.json) u objeto.
+        // virtuals: false evita que se agregue el campo "id" a todas las respuestas
+        toJSON: { getters: true, virtuals: false },
+        toObject: { getters: true, virtuals: false },
+    },
+);
 
 //Exportamos el modelo de usuario para poder usarlo en otras partes del proyecto
 export const User = model<IUser>('User', userSchema);
