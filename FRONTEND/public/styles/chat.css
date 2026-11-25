@@ -1,0 +1,304 @@
+/* ==========================================================================
+   Chat de Play N Seek (privado y de grupo)
+   Solo estilos: chatPrivado.js y chat.js no se modifican. Los mensajes que esos
+   scripts crean (filas .d-flex con una burbuja dentro) se estilizan desde aquí,
+   por eso algunas reglas usan !important para ganarle a las utilidades de Bootstrap.
+   ========================================================================== */
+
+.pns-chat {
+    --pns-bg: #0e1117;
+    --pns-surface: #151a24;
+    --pns-surface-2: #1c2331;
+    --pns-border: rgba(255, 255, 255, 0.08);
+    --pns-text: #e8ecf4;
+    --pns-muted: #8b94a7;
+    --pns-accent: #7c5cff;
+    --pns-accent-2: #22d3ee;
+    --pns-mio: linear-gradient(135deg, #7c5cff 0%, #4f7cff 100%);
+
+    display: flex;
+    flex-direction: column;
+    max-width: 820px;
+    height: min(78vh, 720px);
+    margin: 0 auto 2rem;
+    overflow: hidden;
+    color: var(--pns-text);
+    background: var(--pns-bg);
+    border: 1px solid var(--pns-border);
+    border-radius: 20px;
+    box-shadow: 0 24px 60px -20px rgba(15, 10, 40, 0.55);
+}
+
+/* ---------- Encabezado ---------- */
+.pns-chat__header {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.85rem 1.1rem;
+    background: rgba(21, 26, 36, 0.92);
+    border-bottom: 1px solid var(--pns-border);
+    backdrop-filter: blur(8px);
+}
+
+.pns-chat__back {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    color: var(--pns-muted);
+    font-size: 1.15rem;
+    text-decoration: none;
+    border-radius: 50%;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.pns-chat__back:hover,
+.pns-chat__back:focus-visible {
+    color: var(--pns-text);
+    background: var(--pns-surface-2);
+    outline: none;
+}
+
+/* Avatar con anillo degradado */
+.pns-chat__avatar {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    padding: 2px;
+    border-radius: 50%;
+    background: conic-gradient(from 200deg, var(--pns-accent), var(--pns-accent-2), var(--pns-accent));
+}
+
+.pns-chat__avatar img,
+.pns-chat__avatar .pns-chat__avatar-vacio {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border: 2px solid var(--pns-bg);
+    border-radius: 50%;
+    background: var(--pns-surface-2);
+    color: var(--pns-muted);
+    font-size: 1.2rem;
+}
+
+.pns-chat__who {
+    min-width: 0;
+}
+
+.pns-chat__name {
+    margin: 0;
+    overflow: hidden;
+    font-size: 1.05rem;
+    font-weight: 600;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.pns-chat__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--pns-muted);
+    font-size: 0.8rem;
+}
+
+.pns-chat__status i {
+    color: var(--pns-accent-2);
+}
+
+/* ---------- Área de mensajes ---------- */
+.pns-chat__mensajes {
+    flex: 1;
+    min-height: 0;
+    padding: 1.25rem 1.1rem 0.75rem;
+    overflow-y: auto;
+    background:
+        radial-gradient(900px 360px at 100% 0%, rgba(124, 92, 255, 0.12), transparent 60%),
+        radial-gradient(700px 360px at 0% 100%, rgba(34, 211, 238, 0.08), transparent 60%),
+        var(--pns-bg);
+    scrollbar-width: thin;
+    scrollbar-color: #2a3242 transparent;
+}
+
+.pns-chat__mensajes::-webkit-scrollbar {
+    width: 8px;
+}
+
+.pns-chat__mensajes::-webkit-scrollbar-thumb {
+    background: #2a3242;
+    border-radius: 8px;
+}
+
+/* Estado vacío (sin mensajes todavía) */
+.pns-chat__mensajes:empty::before {
+    content: "Todavía no hay mensajes. ¡Rompe el hielo y propón una partida!";
+    display: block;
+    max-width: 280px;
+    margin: 18% auto 0;
+    color: var(--pns-muted);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+/* Fila de cada mensaje (la crea el JS con d-flex mb-2) */
+.pns-chat__mensajes > .d-flex {
+    margin-bottom: 0.3rem !important;
+    animation: pns-entrada 0.22s ease-out both;
+}
+
+/* Más aire cuando cambia quién escribe */
+.pns-chat__mensajes > .justify-content-end + .justify-content-start,
+.pns-chat__mensajes > .justify-content-start + .justify-content-end {
+    margin-top: 0.8rem;
+}
+
+/* Burbuja */
+.pns-chat__mensajes > .d-flex > div {
+    max-width: min(75%, 520px) !important;
+    padding: 0.55rem 0.9rem !important;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border-radius: 18px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+/* Mis mensajes */
+.pns-chat__mensajes > .justify-content-end > div {
+    color: #fff !important;
+    background: var(--pns-mio) !important;
+    border-bottom-right-radius: 6px !important;
+}
+
+.pns-chat__mensajes > .justify-content-end + .justify-content-end > div {
+    border-top-right-radius: 6px !important;
+}
+
+/* Mensajes del otro usuario */
+.pns-chat__mensajes > .justify-content-start > div {
+    color: var(--pns-text) !important;
+    background: var(--pns-surface-2) !important;
+    border: 1px solid var(--pns-border);
+    border-bottom-left-radius: 6px !important;
+}
+
+.pns-chat__mensajes > .justify-content-start + .justify-content-start > div {
+    border-top-left-radius: 6px !important;
+}
+
+/* Nombre del autor en el chat de grupo */
+.pns-chat__mensajes .fw-bold {
+    margin-bottom: 0.1rem;
+    color: var(--pns-accent-2);
+    font-size: 0.75rem;
+    letter-spacing: 0.02em;
+}
+
+/* Mensaje de error que pinta el JS (por ejemplo, "No tienes match con este usuario") */
+.pns-chat__mensajes > p.text-muted {
+    margin-top: 18%;
+    color: var(--pns-muted) !important;
+    text-align: center;
+}
+
+/* ---------- Caja de escritura ---------- */
+.pns-chat__form {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.8rem 1rem;
+    background: var(--pns-surface);
+    border-top: 1px solid var(--pns-border);
+}
+
+.pns-chat__input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.7rem 1.1rem;
+    color: var(--pns-text);
+    background: var(--pns-surface-2);
+    border: 1px solid var(--pns-border);
+    border-radius: 999px;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pns-chat__input::placeholder {
+    color: var(--pns-muted);
+}
+
+.pns-chat__input:focus {
+    border-color: var(--pns-accent);
+    box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25);
+}
+
+.pns-chat__enviar {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    color: #fff;
+    font-size: 1.05rem;
+    background: var(--pns-mio);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.pns-chat__enviar:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.pns-chat__enviar:active {
+    transform: scale(0.95);
+}
+
+.pns-chat__enviar:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.45);
+}
+
+/* ---------- Variante de grupo (dentro de la pestaña Chat) ---------- */
+.pns-chat--grupo {
+    max-width: none;
+    height: 520px;
+    margin-bottom: 1rem;
+    border-radius: 16px;
+}
+
+/* ---------- Responsive y accesibilidad ---------- */
+@media (max-width: 576px) {
+    .pns-chat {
+        height: calc(100vh - 150px);
+        border-radius: 14px;
+    }
+
+    .pns-chat__mensajes > .d-flex > div {
+        max-width: 85% !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pns-chat__mensajes > .d-flex {
+        animation: none;
+    }
+}
+
+@keyframes pns-entrada {
+    from {
+        opacity: 0;
+        transform: translateY(6px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
