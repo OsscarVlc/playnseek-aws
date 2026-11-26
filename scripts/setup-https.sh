@@ -127,11 +127,6 @@ bash "$SCRIPT_DIR/setup-nginx.sh" "$DOMAIN"
 # certonly: certbot solo obtiene el certificado; la configuración de Nginx la escribe
 # setup-nginx.sh, así siempre es la misma y certbot no la modifica.
 # --keep-until-expiring: si el certificado existe y no está por vencer, no hace nada.
-CERT_NUEVO=false
-if ! sudo test -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
-  CERT_NUEVO=true
-fi
-
 if [[ -n "$EMAIL" ]]; then
   CUENTA=(--email "$EMAIL")
 else
@@ -151,11 +146,8 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now "$RENEW_TIMER"
 systemctl list-timers "$RENEW_TIMER" --no-pager
 
-# La prueba de renovación usa el entorno de pruebas de Let's Encrypt; solo se corre
-# cuando se acaba de emitir el certificado para no hacerla en cada despliegue.
-if [[ "$CERT_NUEVO" == true ]]; then
-  sudo certbot renew --dry-run --cert-name "$DOMAIN"
-fi
-
+# No se corre "certbot renew --dry-run": en una EC2 recién creada llegó a quedarse
+# colgado varios minutos y, como certbot no permite dos ejecuciones a la vez, hacía
+# fallar el siguiente Deploy. La renovación real la hace el timer de arriba.
 sudo certbot certificates --cert-name "$DOMAIN"
 echo "HTTPS listo en https://$DOMAIN"
