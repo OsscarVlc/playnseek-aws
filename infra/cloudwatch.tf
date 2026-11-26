@@ -193,16 +193,18 @@ resource "aws_cloudwatch_dashboard" "monitoreo" {
           period = 300
 
           metrics = [
-            [{
-              id         = "matches"
-              label      = "Matches creados"
-              expression = "SEARCH('{CWAgent} MetricName=\"MatchesCreados\" AND InstanceId=\"${aws_instance.app.id}\"', 'Sum', 300)"
-            }],
-            [{
-              id         = "fallos"
-              label      = "Fallos de sincronización de usuario con Dgraph"
-              expression = "SEARCH('{CWAgent} MetricName=\"FallosSyncUsuarioDgraph\" AND InstanceId=\"${aws_instance.app.id}\"', 'Sum', 300)"
-            }]
+            [
+              "CWAgent", "MatchesCreados",
+              "InstanceId", aws_instance.app.id,
+              "metric_type", "counter",
+              { label = "Matches creados", stat = "Sum", period = 300 }
+            ],
+            [
+              "CWAgent", "FallosSyncUsuarioDgraph",
+              "InstanceId", aws_instance.app.id,
+              "metric_type", "counter",
+              { label = "Fallos de sincronización de usuario con Dgraph", stat = "Sum", period = 300 }
+            ]
           ]
         }
       }
