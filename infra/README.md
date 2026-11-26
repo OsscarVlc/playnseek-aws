@@ -16,7 +16,7 @@ HCP Terraform.
 | Secreto | `secrets.tf` | Variables de `BACKEND/.env` en Secrets Manager |
 | Topic SNS `playnseek-matches` | `sns.tf` | La app publica aquí cada match (flujo 2) |
 | Lambda `playnseek-notificar-match` | `lambda.tf` | Suscrita al topic; manda el correo de match a los dos usuarios |
-| Bucket S3 `playnseek-perfiles-*` | `s3.tf` | Fotos de perfil (flujo 3). Privado, cifrado y con `force_destroy` |
+| Bucket S3 `playnseek-perfiles-<cuenta>` | `scripts/ensure-s3-bucket.sh` | Fotos de perfil (flujo 3). Privado y cifrado. Lo crea Deploy infra con AWS CLI y lo borra Destroy infra |
 
 El código de la Lambda está en `BACKEND/src/lambdas/notificarMatch.handler.ts` y se
 empaqueta con `npm run build:lambda` (esbuild). Los workflows **Deploy infra** y
@@ -30,6 +30,13 @@ escribe `.env` desde Secrets Manager, compila y levanta Dgraph, el backend y Ngi
 Como Learner Lab no permite crear roles, se usan `LabInstanceProfile` y `LabRole`.
 
 ## Fotos de perfil en S3
+
+El bucket no se crea con un recurso `aws_s3_bucket`: al leerlo, el provider de AWS
+llama a `s3:GetBucketObjectLockConfiguration` y la política de AWS Academy niega esa
+acción, por lo que el apply falla. Lo crea `scripts/ensure-s3-bucket.sh` con AWS CLI
+(bloqueo de acceso público, cifrado SSE-S3, sin ACLs) antes de Terraform, y
+`infra/s3.tf` solo calcula el mismo nombre para la app. A mano:
+`bash scripts/ensure-s3-bucket.sh` (crear) o `bash scripts/ensure-s3-bucket.sh --delete`.
 
 La app sube cada foto a `perfiles/<usuarioId>/<uuid>.<ext>` y guarda esa key en
 MongoDB. El bucket no es público: `GET /media/perfiles/...` genera una URL

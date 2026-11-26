@@ -57,3 +57,7 @@ jobs:
 
       - name: Terraform destroy
         run: terraform destroy -input=false -auto-approve
+
+      - name: Borrar el bucket de fotos (S3)
+        # El bucket no está en el state de Terraform (ver infra/s3.tf), se borra aparte.
+        run: bash ../scripts/ensure-s3-bucket.sh --delete

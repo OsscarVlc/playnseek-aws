@@ -48,6 +48,10 @@ jobs:
           npm ci --ignore-scripts
           npm run build:lambda
 
+      - name: Asegurar el bucket de fotos (S3)
+        # Se crea con AWS CLI porque el Learner Lab no deja que Terraform lo lea (ver infra/s3.tf).
+        run: bash ../scripts/ensure-s3-bucket.sh
+
       - name: Instalar Terraform y conectar con HCP Terraform
         uses: hashicorp/setup-terraform@v3
         with:

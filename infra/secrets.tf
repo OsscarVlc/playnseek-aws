@@ -16,7 +16,7 @@ locals {
     DGRAPH_ADDRESS = "localhost:9080"
     PORT           = "3000"
     SNS_TOPIC_ARN  = aws_sns_topic.matches.arn
-    S3_BUCKET      = aws_s3_bucket.perfiles.bucket
+    S3_BUCKET      = local.bucket_perfiles
     AWS_REGION     = var.aws_region
   })
 }
