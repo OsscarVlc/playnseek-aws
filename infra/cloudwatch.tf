@@ -108,6 +108,11 @@ resource "aws_ssm_association" "cloudwatch_agent" {
   name             = "AWS-RunShellScript"
   association_name = "${var.project_name}-cloudwatch-agent"
 
+  # Vuelve a correr los comandos cada 30 minutos. Si la primera ejecución falla
+  # (por ejemplo, porque el user_data de una EC2 nueva sigue usando dnf), el agente
+  # se instala en el siguiente intento. Los comandos son idempotentes.
+  schedule_expression = "rate(30 minutes)"
+
   targets {
     key    = "InstanceIds"
     values = [aws_instance.app.id]
