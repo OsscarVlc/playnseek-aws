@@ -45,5 +45,5 @@ output "lambda_notificar_match" {
 
 output "s3_bucket_perfiles" {
   description = "Bucket privado con las fotos de perfil"
-  value       = aws_s3_bucket.perfiles.bucket
+  value       = local.bucket_perfiles
 }
