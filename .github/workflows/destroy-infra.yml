@@ -29,6 +29,7 @@ jobs:
       AWS_REGION: us-east-1
       # destroy también evalúa las variables, por eso necesita app_env.
       TF_VAR_app_env: ${{ secrets.APP_ENV_JSON }}
+      TF_VAR_alert_email: ${{ secrets.ALERT_EMAIL }}
     steps:
       - uses: actions/checkout@v4
 

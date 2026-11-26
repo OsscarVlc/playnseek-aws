@@ -1,0 +1,2 @@
+# saltos de linea (error en aws, por si acaso xd)
+infra/cloudwatch.tf text eol=lf
